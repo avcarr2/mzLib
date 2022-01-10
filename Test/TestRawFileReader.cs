@@ -209,5 +209,31 @@ namespace Test
             var ethcdScan = spectra.GetOneBasedScan(6);
             Assert.That(ethcdScan.DissociationType == DissociationType.EThcD);
         }
+        [Test]
+        [TestCase("MS1-PMS2_HighHigh.raw")]
+        public static void TestConvertMS1Heading(string fileName)
+		{
+            string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
+            var spectra = ThermoRawFileReader.LoadAllStaticData(filePath, null, 1).GetAllScansList();
+            for(int i = 0; i < spectra.Count; i++)
+			{
+                if(spectra[i].OneBasedScanNumber % 2 == 1)
+				{
+                    continue;
+				}
+				else
+				{
+                    int precursorScanNumber = spectra[i].OneBasedScanNumber - 1; 
+                    spectra[i].SetMsnOrder(2);
+                    spectra[i].SetOneBasedPrecursorScanNumber(precursorScanNumber);
+                    spectra[i].SetIsolationMz(1000);
+                    spectra[i].SetIsolationWidth(2000);
+                    spectra[i].SetSelectedIonMz(1000); 
+				}
+			}
+            FakeMsDataFile f = new FakeMsDataFile(spectra.ToArray());
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f,
+                Path.Combine(TestContext.CurrentContext.TestDirectory, "correctedScanTypes.mzML"), false); 
+		}
     }
 }

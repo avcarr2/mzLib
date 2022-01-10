@@ -59,7 +59,7 @@ namespace MassSpectrometry
         public MzSpectrum MassSpectrum { get; protected set; }
 
         public int OneBasedScanNumber { get; private set; }
-        public int MsnOrder { get; }
+        public int MsnOrder { get; private set;  }
         public double RetentionTime { get; }
         public Polarity Polarity { get; }
         public MZAnalyzerType MzAnalyzer { get; }
@@ -78,7 +78,7 @@ namespace MassSpectrometry
         public double? SelectedIonIntensity { get; private set; } // May be refined
         public double? SelectedIonMZ { get; private set; } // May be adjusted by calibration
         public DissociationType? DissociationType { get; }
-        public double? IsolationWidth { get; }
+        public double? IsolationWidth { get; private set; }
         public int? OneBasedPrecursorScanNumber { get; private set; }
         public double? SelectedIonMonoisotopicGuessIntensity { get; private set; } // May be refined
         public double? SelectedIonMonoisotopicGuessMz { get; private set; } // May be refined
@@ -234,5 +234,17 @@ namespace MassSpectrometry
                 yield return noiseData[2, i];
             }
         }
+        public void SetMsnOrder(int value)
+		{
+            this.MsnOrder = value; 
+		}
+        public void SetSelectedIonMz(double value)
+		{
+            this.SelectedIonMZ = value; 
+		}
+        public void SetIsolationWidth(double value)
+		{
+            this.IsolationWidth = value; 
+		}
     }
 }

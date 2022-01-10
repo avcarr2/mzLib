@@ -248,6 +248,9 @@
     <None Update="DataFiles\BinGenerationTest.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="DataFiles\MS1-PMS2_HighHigh.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="DataFiles\sliced_ethcd.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
