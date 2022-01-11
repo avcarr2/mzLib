@@ -30,6 +30,7 @@
     <ProjectReference Include="..\mzPlot\mzPlot.csproj" />
     <ProjectReference Include="..\PepXML\PepXML.csproj" />
     <ProjectReference Include="..\Proteomics\Proteomics.csproj" />
+    <ProjectReference Include="..\SIDDataAnalysis\SIDDataAnalysis.csproj" />
     <ProjectReference Include="..\ThermoRawFileReader\ThermoRawFileReader.csproj" />
     <ProjectReference Include="..\UsefulProteomicsDatabases\UsefulProteomicsDatabases.csproj" />
   </ItemGroup>
@@ -243,6 +244,18 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="DataFiles\14kDaProteoformMzIntensityMs1.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2021-01-06_YeastFraction2_MS1-PMS2_HighHigh.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="DataFiles\BinGenerationTest.mzML">

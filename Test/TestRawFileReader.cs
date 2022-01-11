@@ -210,7 +210,10 @@ namespace Test
             Assert.That(ethcdScan.DissociationType == DissociationType.EThcD);
         }
         [Test]
-        [TestCase("MS1-PMS2_HighHigh.raw")]
+        [TestCase("2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw")]
+        [TestCase("2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw")]
+        [TestCase("2021-01-06_YeastFraction2_MS1-PMS2_HighHigh.raw")]
+        [TestCase("2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw")]
         public static void TestConvertMS1Heading(string fileName)
 		{
             string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
@@ -231,9 +234,10 @@ namespace Test
                     spectra[i].SetSelectedIonMz(1000); 
 				}
 			}
+            
             FakeMsDataFile f = new FakeMsDataFile(spectra.ToArray());
-            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f,
-                Path.Combine(TestContext.CurrentContext.TestDirectory, "correctedScanTypes.mzML"), false); 
+            var outputfilepath = filePath.Replace(".raw", ".mzML");
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false); 
 		}
     }
 }

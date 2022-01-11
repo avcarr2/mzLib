@@ -246,3 +246,8 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+Test/DataFiles/MS1-PMS2_HighHigh.raw
+/Test/DataFiles/2021-01-06_YeastFraction2_MS1-PMS2_HighHigh.raw
+/Test/DataFiles/2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw
+/Test/DataFiles/2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw
+/Test/DataFiles/2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw
