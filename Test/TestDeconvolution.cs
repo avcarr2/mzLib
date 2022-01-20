@@ -50,7 +50,6 @@ namespace Test
             List<IsotopicEnvelope> isolatedMasses = scan.GetIsolatedMassesAndCharges(spectrum, 1, 60, 4, 3).ToList();
 
             List<double> monoIsotopicMasses = isolatedMasses.Select(m => m.MonoisotopicMass).ToList();
-
             //The primary monoisotopic mass should be the same regardless of which peak in which charge state was selected for isolation.
             //this case is interesting because other monoisotopic mass may have a sodium adduct. The unit test could be expanded to consider this.
             Assert.That(monoIsotopicMasses[0], Is.EqualTo(14037.926829).Within(.0005));

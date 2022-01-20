@@ -6,6 +6,9 @@ using System.Diagnostics;
 using System.IO;
 using IO.ThermoRawFileReader;
 using System.Linq;
+using MzLibUtil;
+using System.Collections.Generic;
+using SIDDataAnalysis; 
 
 namespace Test
 {
@@ -239,5 +242,49 @@ namespace Test
             var outputfilepath = filePath.Replace(".raw", ".mzML");
             MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false); 
 		}
+        [Test]
+        [TestCase("2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw")]
+        //[TestCase("2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw")]
+        //[TestCase("2021-01-06_YeastFraction2_MS1-PMS2_HighHigh.raw")]
+        //[TestCase("2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw")]
+        public static void TestConvertMS1HeadingAndDeconvolute(string fileName)
+        {
+            string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
+            var spectra = ThermoRawFileReader.LoadAllStaticData(filePath, null, 1).GetAllScansList();
+
+            var testSpectra = spectra[2310];
+            MzRange range = new(testSpectra.MassSpectrum.XArray.Min(), testSpectra.MassSpectrum.XArray.Max());
+            int minCharge = 1;
+            int maxCharge = 60;
+            double deconTolerance = 4.00;
+            double intensityRatioLimit = 100;
+            List<IsotopicEnvelope> testDecon = testSpectra.MassSpectrum.Deconvolute(range, minCharge, maxCharge, deconTolerance, intensityRatioLimit).ToList();
+
+
+            Dictionary<double, double> monoMassAndIntensityDict = new Dictionary<double, double>();
+            double[] uniqueMono = testDecon.Select(i => i.MonoisotopicMass).Distinct().ToArray(); 
+            for(int i = 0; i < uniqueMono.Length; i++)
+			{
+                monoMassAndIntensityDict.Add(uniqueMono[i], testDecon.FindAll(delegate (IsotopicEnvelope ie) { return ie.MonoisotopicMass == uniqueMono[i]; })
+                                                                        .Select(i => i.TotalIntensity)
+                                                                        .Sum());
+            }
+            MzSpectrum reconstrSpectrum = new(monoMassAndIntensityDict.Keys.ToArray(), monoMassAndIntensityDict.Values.ToArray(), true); 
+        }
+        [Test]
+        [TestCase("2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw")]
+        public static void SIDExperimentFileProcessing(string fileName)
+		{
+            string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
+            List<MsDataScan> scans = SIDFileProcessing.LoadAndReadSIDMSExperiment(filePath);
+            List<MsDataScan> deconScans = SIDFileProcessing.DeconvoluteAndUpdateHeaders(scans);
+
+            Console.WriteLine("number of MS1 scans: " + deconScans.Where(i => i.MsnOrder == 1).Select(i => i).ToList().Count);
+            Console.WriteLine("number of MS2 scans: " + deconScans.Where(i => i.MsnOrder == 2).Select(i => i).ToList().Count); 
+
+            FakeMsDataFile f = new FakeMsDataFile(deconScans.ToArray());
+            var outputfilepath = filePath.Replace(".raw", "_decon.mzML");
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false);
+        }
     }
 }

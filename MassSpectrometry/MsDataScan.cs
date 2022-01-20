@@ -246,5 +246,9 @@ namespace MassSpectrometry
 		{
             this.IsolationWidth = value; 
 		}
+        public void OverwriteMzSpectrum(MzSpectrum newSpectrum)
+		{
+            this.MassSpectrum = newSpectrum; 
+		}
     }
 }
