@@ -251,3 +251,10 @@ Test/DataFiles/MS1-PMS2_HighHigh.raw
 /Test/DataFiles/2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw
 /Test/DataFiles/2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw
 /Test/DataFiles/2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw
+/Test/DataFiles/R500k_SID100V.raw
+/Test/DataFiles/R500000_SID60.raw
+/Test/DataFiles/R120k_agc800_ms100_mscans_5_RF60_noSID.raw
+/Test/DataFiles/MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800.raw
+/Test/DataFiles/2022-01-20_Data/Yeast_PEPPIFraction2_MSsidMS_Standard_MS1Res240K_MS2Res60K.raw
+/Test/DataFiles/2022-01-20_Data/Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res60K.raw
+/Test/DataFiles/2022-01-20_Data/Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res30K.raw

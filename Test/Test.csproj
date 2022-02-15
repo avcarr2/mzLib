@@ -258,10 +258,148 @@
     <None Update="DataFiles\2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-etdMS_6ProtMix.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_FasterLargeBins_R120R60_SID60_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_FasterLargeBins_R120R60_SID75_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_HighHigh_BaseMethod.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_HighHigh_BaseMethod_240kRes.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID45_AGC1250.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID45_AGC1250_20220120232549.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC1250.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC1250_20220122035858.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC1250_20220122114535.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC1250_20220124051548.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC1250_20220124130400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC400_20220124000427.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800_20220124024007.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID30_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID30_AGC800.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID45_Base.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID45_Base_20220124075148.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID60_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID60_AGC400_20220123082940.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID60_AGC800.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID60_AGC800_20220123110514.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R120_SID75_Base.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC1250.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC1250_20220123212842.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC400.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC400_20220123161657.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC800-qb.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC800.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix_R240_SID60_AGC800_20220123185240.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix__R120_SID60_AGC1250.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\MS1-sidMS2_6ProtMix__R120_SID60_AGC1250_20220123134104.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction1_MSsidMS_FastBins_MS1Res120K_MS2Res30K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction1_MSsidMS_FastBins_MS1Res240K_MS2Res60K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res30K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res60K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction2_MSsidMS_FastBins_MS1Res120K_MS2Res30K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction2_MSsidMS_FastBins_MS1Res240K_MS2Res60K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction2_MSsidMS_Standard_MS1Res240K_MS2Res30K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction2_MSsidMS_Standard_MS1Res240K_MS2Res60K.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="DataFiles\BinGenerationTest.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="DataFiles\MS1-PMS2_HighHigh.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\R120k_agc800_ms100_mscans_5_RF60_noSID.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\R500000_SID60.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\R500k_SID100V.raw">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="DataFiles\sliced_ethcd.mzML">

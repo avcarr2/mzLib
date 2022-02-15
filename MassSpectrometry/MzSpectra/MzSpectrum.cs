@@ -270,7 +270,7 @@ namespace MassSpectrometry
             for (int candidateForMostIntensePeakIndex = indexes.start; candidateForMostIntensePeakIndex < indexes.end; candidateForMostIntensePeakIndex++)
             {
                 double candidateForMostIntensePeakIntensity = YArray[candidateForMostIntensePeakIndex];
-                if (candidateForMostIntensePeakIntensity * 100 >= maxIntensity) //ignore peptides that are over 100 times less intense than the most intense peak in the range (heuristic from Top-Down yeast)
+                if (candidateForMostIntensePeakIntensity * 100000 >= maxIntensity) //ignore peptides that are over 100 times less intense than the most intense peak in the range (heuristic from Top-Down yeast)
                 {
                     IsotopicEnvelope bestIsotopeEnvelopeForThisPeak = null;
 

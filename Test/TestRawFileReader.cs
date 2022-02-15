@@ -213,10 +213,7 @@ namespace Test
             Assert.That(ethcdScan.DissociationType == DissociationType.EThcD);
         }
         [Test]
-        [TestCase("2021-01-06_YeastFraction1_MS1-PMS2_HighHigh.raw")]
-        [TestCase("2021-01-06_YeastFraction1_MS1-pMS2_LowHigh.raw")]
-        [TestCase("2021-01-06_YeastFraction2_MS1-PMS2_HighHigh.raw")]
-        [TestCase("2021-01-06_YeastFraction2_MS1-pMS2_LowHigh.raw")]
+        [TestCase("R500k_SID100V.raw")]
         public static void TestConvertMS1Heading(string fileName)
 		{
             string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
@@ -279,11 +276,135 @@ namespace Test
             List<MsDataScan> scans = SIDFileProcessing.LoadAndReadSIDMSExperiment(filePath);
             List<MsDataScan> deconScans = SIDFileProcessing.DeconvoluteAndUpdateHeaders(scans);
 
+            
+            double[][] jaggedArray = { deconScans[0].MassSpectrum.XArray, deconScans[0].MassSpectrum.YArray }; 
+
+            
+
             Console.WriteLine("number of MS1 scans: " + deconScans.Where(i => i.MsnOrder == 1).Select(i => i).ToList().Count);
             Console.WriteLine("number of MS2 scans: " + deconScans.Where(i => i.MsnOrder == 2).Select(i => i).ToList().Count); 
 
             FakeMsDataFile f = new FakeMsDataFile(deconScans.ToArray());
             var outputfilepath = filePath.Replace(".raw", "_decon.mzML");
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false);
+        }
+        [Test]
+        public static void ConvertMS1HeadingFromDirectory()
+        {
+            string folderPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", @"2022-01-20_Data");
+            string[] fileNames = Directory.GetFiles(folderPath, "*.raw"); 
+            for(int i = 0; i < fileNames.Length; i++)
+			{
+                string path = Path.Combine(folderPath, fileNames[i]);
+                List<MsDataScan> scans = SIDFileProcessing.LoadAndReadSIDMSExperiment(path);
+                WriteMZMLFile(SIDFileProcessing.ConvertMS1Heading(scans), path, "_converted"); 
+			}
+        }
+
+        public static void WriteMZMLFile(List<MsDataScan> scans, string filePath, string identifier)
+		{
+            FakeMsDataFile f = new FakeMsDataFile(scans.ToArray());
+            var outputfilepath = filePath.Replace(".raw", identifier + ".mzML");
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false); 
+		}
+        public static void WriteMZMLFile(MsDataScan singleScan, string filePath, string identifier)
+		{
+            MsDataScan[] scansArray = { singleScan }; 
+
+            FakeMsDataFile f = new FakeMsDataFile(scansArray);
+            var outputfilepath = filePath.Replace(".raw", identifier + ".mzML");
+            MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false);
+        }
+        
+        [Test]
+        public static void TestSumSpectra()
+		{
+            string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", "MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800.raw");
+            List<MsDataScan> allScans = SIDFileProcessing.LoadAndReadSIDMSExperiment(path);
+
+            MsDataScan parentScan = allScans[1500];
+            List<MsDataScan> daughterScans = new();
+            daughterScans.Add(allScans[1501]);
+            daughterScans.Add(allScans[1502]);
+            daughterScans.Add(allScans[1503]);
+            daughterScans.Add(allScans[1504]);
+
+            double minScans = daughterScans[0].MassSpectrum.XArray.Min();
+            double maxOfScans = daughterScans[3].MassSpectrum.XArray.Max(); 
+            MsDataScan compositedScan = SIDFileProcessing.SumSpectra(parentScan, daughterScans, minScans, maxOfScans);
+            TestContext.WriteLine(parentScan.ScanFilter.ToString());
+            TestContext.WriteLine(parentScan.NativeId.ToString()); 
+            WriteMZMLFile(compositedScan, path, "binned"); 
+		}
+        [Test]
+        public static void TestCreateBinnedSpectra()
+		{
+            string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", "MS1-sidMS2_6ProtMix_LargeBins_R120_SID60_AGC800.raw");
+            List<MsDataScan> allScans = SIDFileProcessing.LoadAndReadSIDMSExperiment(path);
+            TestContext.WriteLine(allScans[0].NativeId.ToString()); 
+
+            List<MsDataScan> processedScans = SIDFileProcessing.SumSpectraAcrossAllScans(allScans, 4);
+
+            TestContext.WriteLine(processedScans[1].NativeId.ToString()); 
+            WriteMZMLFile(processedScans, path, "_summed"); 
+
+            // metamorpheus is current failing to parse the file. Not sure what the issue is 
+        }
+        [Test]
+        public static void TestCreateBinnedSpectraOnAllExperimentsInFile()
+		{
+            string folderPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", @"2022-01-20_Data");
+
+            string[] fileNames = Directory.GetFiles(folderPath, "*.raw");
+            for (int i = 0; i < fileNames.Length; i++)
+            {
+                string path = Path.Combine(folderPath, fileNames[i]);
+                List<MsDataScan> allScans = SIDFileProcessing.LoadAndReadSIDMSExperiment(path);
+                List<MsDataScan> processedScans = SIDFileProcessing.SumSpectraAcrossAllScans(allScans, 4); 
+                WriteMZMLFile(processedScans, path, "_summed");
+            }
+        }
+
+        [Test] 
+        public static void TestDeconvoluteSpectrumParameters()
+		{
+            string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", "2022-01-20_Data", "MS1-sidMS2_6ProtMix_R240_SID60_AGC800-qb.raw");
+            MsDataScan testScan = SIDFileProcessing.LoadAndReadSIDMSExperiment(path).ElementAt(0);
+
+            testScan.OverwriteMzSpectrum(SIDFileProcessing.DeconvoluteSpectrum(testScan));
+
+            WriteMZMLFile(testScan, path, "_testScan_intRL_500000");
+		}
+        [TestCase("R500k_SID100V.raw")]
+        public static void Test500KResSpectra(string fileName)
+        {
+            string filePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", fileName);
+            string filePath2 = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", "R120k_agc800_ms100_mscans_5_RF60_noSID.raw"); 
+            var spectra = ThermoRawFileReader.LoadAllStaticData(filePath, null, 1).GetAllScansList();
+            var ms1s = ThermoRawFileReader.LoadAllStaticData(filePath2, null, 1).GetAllScansList();
+
+            var result = ms1s.Zip(spectra, (f, s) => new[] { f, s }).SelectMany(f => f).ToList(); 
+
+
+            for (int i = 0; i < result.Count; i++)
+            {
+                if (result[i].OneBasedScanNumber % 2 == 1)
+                {
+                    continue;
+                }
+                else
+                {
+                    int precursorScanNumber = result[i].OneBasedScanNumber - 1;
+                    result[i].SetMsnOrder(2);
+                    result[i].SetOneBasedPrecursorScanNumber(precursorScanNumber);
+                    result[i].SetIsolationMz(1000);
+                    result[i].SetIsolationWidth(2000);
+                    result[i].SetSelectedIonMz(1000);
+                }
+            }
+
+            FakeMsDataFile f = new FakeMsDataFile(result.ToArray());
+            var outputfilepath = filePath.Replace(".raw", ".mzML");
             MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false);
         }
     }
