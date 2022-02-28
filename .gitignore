@@ -246,7 +246,11 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+<<<<<<< HEAD
 
 # Macintosh files
 **/.DS_Store
 
+=======
+Test/DataFiles/2022-01-20_Data/Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res30K.raw
+>>>>>>> c741b64 (Initial commit of instrument control)
