@@ -246,3 +246,4 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+Test/DataFiles/2022-01-20_Data/Yeast_PEPPIFraction1_MSsidMS_Standard_MS1Res240K_MS2Res30K.raw

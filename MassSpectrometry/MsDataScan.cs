@@ -20,6 +20,13 @@ using MzLibUtil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Thermo.Interfaces.InstrumentAccess_V1.MsScanContainer;
+using InstrumentControl;
+using ThermoFisher.CommonCore.Data.Interfaces;
+using ThermoFisher.CommonCore.RawFileReader;
+using ThermoFisher.CommonCore.Data.Business; 
+
+
 
 namespace MassSpectrometry
 {
@@ -51,6 +58,50 @@ namespace MassSpectrometry
             SelectedIonChargeStateGuess = selectedIonChargeStateGuess;
             SelectedIonMonoisotopicGuessMz = selectedIonMonoisotopicGuessMz;
             HcdEnergy = hcdEnergy;
+        }
+        public MsDataScan(IMsScan imsScan)
+		{
+            
+
+
+            OneBasedScanNumber = imsScan.GetValueFromHeaderDict<int>("Scan Number");
+            MsnOrder = imsScan.GetValueFromHeaderDict<int>("MSOrder"); 
+            IsCentroid = imsScan.GetValueFromHeaderDict<string>("DataType").Contains("Centroid");
+            string _polarity = imsScan.GetValueFromHeaderDict<string>("Polarity");
+            Polarity = (Polarity)Enum.Parse(typeof(Polarity), _polarity); 
+            RetentionTime = imsScan.GetValueFromHeaderDict<double>("Scan Start Time");
+            ScanWindowRange = new MzRange(imsScan.GetValueFromHeaderDict<double>("Scan Low Mass"), imsScan.GetValueFromHeaderDict<double>("Scan High Mass")); 
+            ScanFilter = imsScan.GetValueFromHeaderDict<string>("Scan Mode");
+            MzAnalyzer = MZAnalyzerType.Unknown; 
+            TotalIonCurrent = imsScan.GetValueFromHeaderDict<double>("Total Ion Current");
+            InjectionTime = imsScan.GetValueFromHeaderDict<double>("Ion Injection Time (ms)");
+            //NoiseData = ;
+            MassSpectrum = new MzSpectrum(imsScan.GetMassSpectrum()); 
+            NativeId = "controllerType=0 controllerNumber=1 scan=" + OneBasedScanNumber.ToString();
+
+            OneBasedPrecursorScanNumber = null;
+            SelectedIonIntensity = null;
+            SelectedIonMonoisotopicGuessIntensity = null;
+            SelectedIonMonoisotopicGuessMz = null;
+            SelectedIonChargeStateGuess = null;
+            SelectedIonMZ = null;
+            IsolationWidth = null;
+            DissociationType = null;
+            HcdEnergy = null; 
+
+            if (MsnOrder > 1)
+			{
+                
+                OneBasedPrecursorScanNumber = imsScan.GetValueFromHeaderDict<int>("Master Scan Number");
+                SelectedIonMZ = imsScan.GetValueFromHeaderDict<double>("Monoisotopic M/Z");
+                DissociationType = MassSpectrometry.DissociationType.HCD; // set this as default for now, get it to actually work later
+                SelectedIonChargeStateGuess = imsScan.GetValueFromHeaderDict<int>("Charge State");
+				SelectedIonMonoisotopicGuessMz = imsScan.GetValueFromHeaderDict<double>("Monoisotopic M/Z");
+                SelectedIonIntensity = 10000000; // dummy value. Figure this out later
+                HcdEnergy = imsScan.GetValueFromHeaderDict<string>("HCD Energy");
+                IsolationMz = imsScan.GetValueFromHeaderDict<double>("Parent Mass");
+                IsolationWidth = imsScan.GetValueFromHeaderDict<double>("Isolation Width");
+            }           
         }
 
         /// <summary>
