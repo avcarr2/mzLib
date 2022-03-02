@@ -1,24 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <Platforms>x64</Platforms>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="MathNet.Numerics" Version="4.8.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Chemistry\Chemistry.csproj" />
-    <ProjectReference Include="..\IMSScanClassExtensions\IMSScanClassExtensions.csproj" />
-    <ProjectReference Include="..\MzLibUtil\MzLibUtil.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="API-1.1">
@@ -27,6 +11,12 @@
     <Reference Include="API-2.0">
       <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\API-2.0.dll</HintPath>
     </Reference>
+    <Reference Include="ESAPI-1.0">
+      <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\exactive\ESAPI-1.0.dll</HintPath>
+    </Reference>
+    <Reference Include="ESAPI-1.1">
+      <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\exactive\ESAPI-1.1.dll</HintPath>
+    </Reference>
     <Reference Include="Fusion.API-1.0">
       <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\Fusion.API-1.0.dll</HintPath>
     </Reference>
@@ -34,7 +24,7 @@
       <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\Spectrum-1.0.dll</HintPath>
     </Reference>
     <Reference Include="Thermo.TNG.Factory">
-      <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\Thermo.TNG.Factory.dll</HintPath>
+      <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\tribrid\Thermo.TNG.Factory.dll</HintPath>
     </Reference>
     <Reference Include="VI-1.0">
       <HintPath>..\InstrumentControl\ThermoIAPIDependencies\lib\VI-1.0.dll</HintPath>

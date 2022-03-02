@@ -28,7 +28,6 @@ namespace InstrumentControl
 				 * and I'm not sure how you would pass a single IMsScan to multiple threads yet
 				 */
 				api.MSScanContainer.MsScanArrived += dataReceiver.MSScanContainer_MsScanArrived; 
-				
 			}
 			
 		}
