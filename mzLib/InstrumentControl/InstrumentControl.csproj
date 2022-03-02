@@ -4,4 +4,32 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="API-1.1" />
+    <None Remove="API-2.0" />
+    <None Remove="Fusion.API-1.0" />
+    <None Remove="Spectrum-1.0" />
+    <None Remove="Thermo.TNG.Factory" />
+    <None Remove="VI-1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="API-1.1">
+      <HintPath>ThermoIAPIDependencies\lib\API-1.1.dll</HintPath>
+    </Reference>
+    <Reference Include="API-2.0">
+      <HintPath>ThermoIAPIDependencies\lib\API-2.0.dll</HintPath>
+    </Reference>
+    <Reference Include="Fusion.API-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\Fusion.API-1.0.dll</HintPath>
+    </Reference>
+    <Reference Include="Spectrum-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\Spectrum-1.0.dll</HintPath>
+    </Reference>
+    <Reference Include="VI-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\VI-1.0.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MassSpectrometry\MassSpectrometry.csproj" />
+  </ItemGroup>
 </Project>
