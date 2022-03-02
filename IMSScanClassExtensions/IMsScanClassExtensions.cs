@@ -2,7 +2,8 @@
 using Thermo.Interfaces.InstrumentAccess_V1.MsScanContainer;
 using System.Linq;
 
-namespace InstrumentControl
+
+namespace IMSScanClassExtensions
 {
 	public static class IMsScanExtensions
 	{

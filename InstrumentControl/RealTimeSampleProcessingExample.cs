@@ -60,6 +60,7 @@ namespace InstrumentControl
 		public void ProteoformProcessingEngine()
         {
 			// engine should try to return void, bool, or an ICustomScan object (or both bool and ICustomScan) 
-        }
+
+		}
 	}
 }

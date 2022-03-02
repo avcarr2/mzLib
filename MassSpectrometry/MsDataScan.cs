@@ -21,10 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Thermo.Interfaces.InstrumentAccess_V1.MsScanContainer;
-using InstrumentControl;
-using ThermoFisher.CommonCore.Data.Interfaces;
-using ThermoFisher.CommonCore.RawFileReader;
-using ThermoFisher.CommonCore.Data.Business; 
+using IMSScanClassExtensions;
 
 
 
@@ -61,9 +58,6 @@ namespace MassSpectrometry
         }
         public MsDataScan(IMsScan imsScan)
 		{
-            
-
-
             OneBasedScanNumber = imsScan.GetValueFromHeaderDict<int>("Scan Number");
             MsnOrder = imsScan.GetValueFromHeaderDict<int>("MSOrder"); 
             IsCentroid = imsScan.GetValueFromHeaderDict<string>("DataType").Contains("Centroid");
@@ -91,7 +85,6 @@ namespace MassSpectrometry
 
             if (MsnOrder > 1)
 			{
-                
                 OneBasedPrecursorScanNumber = imsScan.GetValueFromHeaderDict<int>("Master Scan Number");
                 SelectedIonMZ = imsScan.GetValueFromHeaderDict<double>("Monoisotopic M/Z");
                 DissociationType = MassSpectrometry.DissociationType.HCD; // set this as default for now, get it to actually work later
