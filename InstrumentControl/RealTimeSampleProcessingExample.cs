@@ -11,6 +11,9 @@ using Thermo.Interfaces.SpectrumFormat_V1;
 using Thermo.Interfaces.FusionAccess_V1.Control.Scans;
 using System.Threading;
 using MassSpectrometry;
+using UsefulProteomicsDatabases;
+using IO.ThermoRawFileReader;
+using NUnit.Framework;
 
 namespace InstrumentControl
 {
@@ -61,6 +64,36 @@ namespace InstrumentControl
         {
 			// engine should try to return void, bool, or an ICustomScan object (or both bool and ICustomScan) 
 
+		}
+
+		[TestFixture]
+
+		public static class TestRealTimeProcessingExample
+		{
+			[Test]
+			public static void TestRealTimeProcessing()
+			{
+				// Load in Database Data
+				string fileName = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\Six_Protein_Standard.fasta";
+				var proteinList = ProteinDbLoader.LoadProteinFasta(fileName, true, DecoyType.None, false, out var dbErrors);
+
+				// Load in msScans
+				string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\2021-01-06_TopDownStandard_YeastFraction1.raw";
+				List<MsDataScan> scans = ThermoRawFileReader.LoadAllStaticData(filepath).GetAllScansList();
+
+				RealTimeSampleProcessingExample ProcessingExample = new();
+
+				foreach (var scan in scans)
+				{
+					ProcessingExample.ScanProcessingQueue.Enqueue(scan);
+					ProcessingExample.ProteoformProcessingEngine();
+					int breakpoint = 0;
+				}
+
+
+
+				Assert.That(true);
+			}
 		}
 	}
 }
