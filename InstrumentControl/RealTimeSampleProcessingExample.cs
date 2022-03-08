@@ -11,11 +11,12 @@ using Thermo.Interfaces.SpectrumFormat_V1;
 using Thermo.Interfaces.FusionAccess_V1.Control.Scans;
 using System.Threading;
 using MassSpectrometry;
+using NUnit.Framework;
 
 namespace InstrumentControl
 {
-    public class RealTimeSampleProcessingExample : DataReceiver
-    {
+	public class RealTimeSampleProcessingExample : DataReceiver
+	{
 		/*
 		 Method classes inheriting from DataReceiver must implement a ScanProcessingQueue
 		(Queue<MsDataScan>) and the MSScanContainer_MsScanArrived method.
@@ -27,11 +28,11 @@ namespace InstrumentControl
 		 */
 
 		// private field used to initialize the scan processing queue
-		private Queue<MsDataScan> _scanProcessingQueue = new Queue<MsDataScan>(); 
+		private Queue<MsDataScan> _scanProcessingQueue = new Queue<MsDataScan>();
 		// ScanProcessingQueue is the public property; it uses the getter to set the private
 		// field to the public property. This is the correct way to initialize a publicly
 		// available object like Queues, Lists, and Dicts as properties.
-		public override Queue<MsDataScan> ScanProcessingQueue { get { return _scanProcessingQueue; }}
+		public override Queue<MsDataScan> ScanProcessingQueue { get { return _scanProcessingQueue; } }
 
 		public override void MSScanContainer_MsScanArrived(object sender, MsScanEventArgs e)
 		{
@@ -53,12 +54,12 @@ namespace InstrumentControl
 			ProteoformProcessingEngine();
 
 			// TODO: Implement ICustomScan wrapper to facilitate custom scan sending.
-            // May need to wait till Chris Rose has figured everything with Thermo out. 
+			// May need to wait till Chris Rose has figured everything with Thermo out. 
 		}
 
 		// other methods used in processing go below this comment:
 		public void ProteoformProcessingEngine()
-        {
+		{
 			// engine should try to return void, bool, or an ICustomScan object (or both bool and ICustomScan) 
 
 		}
