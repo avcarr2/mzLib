@@ -61,6 +61,13 @@ namespace Proteomics.AminoAcidPolymer
         protected AminoAcidPolymer(string sequence)
             : this(sequence, new ChemicalFormulaTerminus(ChemicalFormula.ParseFormula("H")), new ChemicalFormulaTerminus(ChemicalFormula.ParseFormula("OH")))
         {
+
+        }
+
+        protected AminoAcidPolymer(Protein protein)
+            : this(protein.BaseSequence, new ChemicalFormulaTerminus(ChemicalFormula.ParseFormula("H")), new ChemicalFormulaTerminus(ChemicalFormula.ParseFormula("OH")))
+        {
+
         }
 
         protected AminoAcidPolymer(string sequence, IHasChemicalFormula nTerm, IHasChemicalFormula cTerm)

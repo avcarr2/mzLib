@@ -22,6 +22,7 @@
     <ProjectReference Include="..\BayesianEstimation\BayesianEstimation.csproj" />
     <ProjectReference Include="..\Chemistry\Chemistry.csproj" />
     <ProjectReference Include="..\FlashLFQ\FlashLFQ.csproj" />
+    <ProjectReference Include="..\InstrumentControl\InstrumentControl.csproj" />
     <ProjectReference Include="..\MassSpectrometry\MassSpectrometry.csproj" />
     <ProjectReference Include="..\Mgf\Mgf.csproj" />
     <ProjectReference Include="..\MzIdentML\MzIdentML.csproj" />
@@ -295,6 +296,12 @@
     <None Update="DataFiles\Tab_separated_peak_list.mgf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="DataFiles\TDYeastFractionMMResult.psmtsv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\TDYeastFractionMS1.mzML">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="DataFiles\tester.mgf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -309,6 +316,9 @@
     </None>
     <None Update="DataFiles\tiny.pwiz.1.1.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\TopDownStandardYeast.raw">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
     <None Update="DataFiles\withZeros.mgf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

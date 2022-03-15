@@ -571,7 +571,12 @@ namespace Proteomics.RetentionTimePrediction
 
         public double ScoreSequence(PeptideWithSetModifications item)
         {
-            var seq = item.BaseSequence; //PTMs are not yet implemented
+            var sequence = item.BaseSequence;
+            return ScoreSequence(sequence);
+        }
+
+        public double ScoreSequence(string seq)
+        {
             double tsum3 = 0.0;
             int i;
 

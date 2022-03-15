@@ -12,6 +12,12 @@ using Thermo.Interfaces.FusionAccess_V1.Control.Scans;
 using System.Threading;
 using MassSpectrometry;
 using NUnit.Framework;
+using UsefulProteomicsDatabases;
+using Chemistry;
+using System.IO;
+using Proteomics;
+using Proteomics.AminoAcidPolymer;
+using MzLibUtil;
 
 namespace InstrumentControl
 {
@@ -33,6 +39,29 @@ namespace InstrumentControl
 		// field to the public property. This is the correct way to initialize a publicly
 		// available object like Queues, Lists, and Dicts as properties.
 		public override Queue<MsDataScan> ScanProcessingQueue { get { return _scanProcessingQueue; } }
+		public MS1DatabaseParser Database { get; }
+		public MS1SearchEngine SearchEngine { get; }
+		public int[] ScoreTable { get; private set; }
+		public List<IsotopicEnvelope> Envelopes { get; private set; }
+		private readonly int PeaksToKeep;
+		public double[] BestMatchedPeaks { get; private set; } // May only be used for testing purpose, We shall see after the ICustomScan wrapper is built
+
+
+		public RealTimeSampleProcessingExample(string databaseFileName, int ppmTolerance = 20, int peaksToKeep = 5)
+        {
+			Database = new(databaseFileName);
+			SearchEngine = new(Database, new PpmTolerance(ppmTolerance));
+			PeaksToKeep = peaksToKeep;
+		}
+
+		public RealTimeSampleProcessingExample(MS1DatabaseParser database, int ppmTolerance = 20, int peaksToKeep = 5)
+        {
+			Database = database;
+			SearchEngine = new(Database, new PpmTolerance(ppmTolerance));
+			PeaksToKeep = peaksToKeep;
+		}
+
+		public RealTimeSampleProcessingExample() { }
 
 		public override void MSScanContainer_MsScanArrived(object sender, MsScanEventArgs e)
 		{
@@ -62,6 +91,42 @@ namespace InstrumentControl
 		{
 			// engine should try to return void, bool, or an ICustomScan object (or both bool and ICustomScan) 
 
+			// Deque the scan to be analyzed and clear any data from previous scans entereing this method
+			MsDataScan scan = ScanProcessingQueue.Dequeue();
+			List<IsotopicEnvelope> envelopes = new();
+            SearchEngine.PeakScorer(scan, out envelopes, out int[] scores);
+            // TOTRY: passing in raw ScoreTable and Envelopes after wiping them above SearchEngine
+            ScoreTable = scores;
+			Envelopes = envelopes;
+
+
+
+			// Takes the scored values unrecognizes them and adds them to a list of selected peaks, saving only the 5 peaks with the highest intensity
+			// TODO Parallelize this
+			// TOTRY: Adding all peaks to one list then pulling out the top 5 at the end, may have fewer operations and speed up processing overall
+			List<IsotopicEnvelope> selectedPeaks = new();
+			for (int i = 0; i < ScoreTable.Count(); i++)
+            {
+				if (ScoreTable[i] == 0)
+                {
+					if (selectedPeaks.Count() < PeaksToKeep)
+                    {
+						selectedPeaks.Add(Envelopes[i]);
+                    }
+					else if (selectedPeaks.Count() >= PeaksToKeep && Envelopes[i].TotalIntensity > selectedPeaks.Min(p => p.TotalIntensity))
+                    {
+						if (selectedPeaks.Any(p => SearchEngine.Tolerance.Within(Envelopes[i].MonoisotopicMass, p.MonoisotopicMass)))
+						{
+							continue;
+                        }
+
+						selectedPeaks.Remove(selectedPeaks.Where(p => p.TotalIntensity == selectedPeaks.Min(m => m.TotalIntensity)).Single());
+						selectedPeaks.Add(Envelopes[i]);
+                    }
+                }
+            }
+			BestMatchedPeaks = selectedPeaks.Select(p => p.MonoisotopicMass).ToArray();
 		}
 	}
 }
+

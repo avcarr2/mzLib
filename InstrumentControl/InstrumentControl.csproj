@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MassSpectrometry\MassSpectrometry.csproj" />
+    <ProjectReference Include="..\Proteomics\Proteomics.csproj" />
+    <ProjectReference Include="..\ThermoRawFileReader\ThermoRawFileReader.csproj" />
+    <ProjectReference Include="..\UsefulProteomicsDatabases\UsefulProteomicsDatabases.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="API-1.1">
