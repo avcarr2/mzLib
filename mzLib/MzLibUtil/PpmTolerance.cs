@@ -40,6 +40,11 @@ namespace MzLibUtil
             return $"{"±"}{Value.ToString("f4", System.Globalization.CultureInfo.InvariantCulture)} PPM";
         }
 
+        /// <summary>
+        /// Returns the tolerance range for a given ppm error (value) with respoect to the data point in question (mean)
+        /// </summary>
+        /// <param name="mean"></param> The number whose tolerance should be calculated
+        /// <returns></returns>
         public override DoubleRange GetRange(double mean)
         {
             double tol = Value * mean / 1e6;
