@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Proteomics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -60,6 +61,8 @@ namespace Test
 		[Test]
 		public static void TestingRealTimeProcessingOnSearchResults()
         {
+			double percentToRemove = 30;
+
 			// Loads in scans
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
 			//string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\2021-01-06_TopDownStandard_YeastFraction1.raw"; // for me to run with full LCMS run
@@ -68,28 +71,10 @@ namespace Test
 			// Loads in MM-TD search results of the above scans, pulls out the top scoring 100, and treats half as the database
 			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
 			//string psmFile = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\TDYestFractionMMFullResults\Task1-SearchTask\AllProteoforms.psmtsv"; //for me to run with full LCMS results
-			List<SimulatedProtein> proteins = new();
-			foreach (string line in File.ReadAllLines(psmFile))
-			{
-				var split = line.Split(new char[] { '\t' });
-				if (split.Contains("File Name") || string.IsNullOrWhiteSpace(line))
-				{
-					continue;
-				}
-				string baseSequence = split[12];
-				string fullSequence = split[13];
-				string accession = split[25];
+			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
+			List<SimulatedProtein> removedProteins = proteins.GetRange(0, (int)(proteins.Count() * (percentToRemove / 100)));
+			proteins.RemoveRange(0, (int)(proteins.Count() * (percentToRemove / 100)));
 
-				//If there are no PTM's as this is not implemented yet
-				if (fullSequence.Equals(baseSequence))
-                {
-					SimulatedProtein protein = new(new Protein(baseSequence, accession));
-					proteins.Add(protein);
-				}			
-			}
-
-			var removedProteins = proteins.GetRange(0, proteins.Count() / 3);
-			proteins.RemoveRange(0, proteins.Count / 3);
 			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
 			RealTimeSampleProcessingExample processingExample = new(database);
 
@@ -113,13 +98,41 @@ namespace Test
 				}
 			}
 
-			double tenPercentOfRemovedProteins = (double)removedProteins.Count() * 0.30;
+			double percentOfRemovedProteins = (double)removedProteins.Count() * 0.30;
 			int countOfRemovedProteinsThatWereNotSelected = removedProteinMasses.Count(p => p != 0);
-			Assert.GreaterOrEqual(tenPercentOfRemovedProteins, countOfRemovedProteinsThatWereNotSelected);
+			Assert.GreaterOrEqual(percentOfRemovedProteins, countOfRemovedProteinsThatWereNotSelected);
 
 		}
 
+		[Test]
+		public static void TestTimingOfProteoformProcessingEngine()
+        {
+			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
+			var scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
+			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
+			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
+			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
+			RealTimeSampleProcessingExample processingExample = new(database);
 
+			var stopWatch = new Stopwatch();
+			List<double> times = new();
+			foreach (var scan in scans)
+            {
+				stopWatch.Start();
+				processingExample.ScanProcessingQueue.Enqueue(scan);
+				processingExample.ProteoformProcessingEngine();
+				stopWatch.Stop();
+				times.Add(stopWatch.Elapsed.TotalMilliseconds);
+				stopWatch.Reset();
+			}
+			double minTime = times.Min();
+			double maxTime = times.Max();
+			double avgTime = times.Average();
+
+			Console.WriteLine("Average Time: {0} /n Max Time: {1} /n Min Time: {2}", avgTime, maxTime, minTime);
+			Assert.That(250 >= avgTime);
+			Assert.That(250 >= maxTime);
+		}
 	}
 
 }

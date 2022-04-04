@@ -4,6 +4,7 @@ using Proteomics;
 using Proteomics.AminoAcidPolymer;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -53,6 +54,37 @@ namespace InstrumentControl
 			ProteinList = ProteinList.OrderBy(p => p.MonoisotopicMass).ToList();
 			ProteinIndex = ProteinList.OrderBy(m => m.MonoisotopicMass).Select(p => p.MonoisotopicMass).ToArray();
 
+		}
+
+		// Takes in the filepath of a psmtsv and returns the proteins
+		public static List<SimulatedProtein> GetSimulatedProteinsFromPsmtsv(string filepath, bool onlyBaseSequences = true)
+        {
+			List<SimulatedProtein> proteins = new();
+			foreach (string line in File.ReadAllLines(filepath))
+			{
+				var split = line.Split(new char[] { '\t' });
+				if (split.Contains("File Name") || string.IsNullOrWhiteSpace(line))
+				{
+					continue;
+				}
+				string baseSequence = split[12];
+				string fullSequence = split[13];
+				string accession = split[25];
+
+				// If there are no PTM's as this is not implemented yet
+				if (onlyBaseSequences && fullSequence.Equals(baseSequence))
+				{
+					SimulatedProtein protein = new(new Protein(baseSequence, accession));
+					proteins.Add(protein);
+				}
+				// If you account for PTM's
+				if (!onlyBaseSequences)
+                {
+					SimulatedProtein protein = new(new Protein(baseSequence, accession));
+					proteins.Add(protein);
+                }
+			}
+			return proteins;
 		}
 	}
 }
