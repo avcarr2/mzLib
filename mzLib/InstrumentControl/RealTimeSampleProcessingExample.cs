@@ -102,7 +102,6 @@ namespace InstrumentControl
 
 
 			// Takes the scored values unrecognizes them and adds them to a list of selected peaks, saving only the 5 peaks with the highest intensity
-			// TODO Parallelize this
 			// TOTRY: Adding all peaks to one list then pulling out the top 5 at the end, may have fewer operations and speed up processing overall
 			List<IsotopicEnvelope> selectedPeaks = new();
 			for (int i = 0; i < ScoreTable.Count(); i++)
