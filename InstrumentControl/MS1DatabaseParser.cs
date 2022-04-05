@@ -1,7 +1,8 @@
-﻿using Chemistry;
+﻿using IO.MzML;
+using IO.ThermoRawFileReader;
 using MassSpectrometry;
+using MzLibUtil;
 using Proteomics;
-using Proteomics.AminoAcidPolymer;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -85,6 +86,21 @@ namespace InstrumentControl
                 }
 			}
 			return proteins;
+		}
+
+		public static List<MsDataScan> LoadAllScansFromFile(string filepath)
+        {
+
+			List<MsDataScan> scans = new();
+			if (filepath.EndsWith(".mzML"))
+				scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
+			else if (filepath.EndsWith(".raw"))
+				scans = ThermoRawFileReader.LoadAllStaticData(filepath).GetAllScansList();
+			else
+            {
+				throw new MzLibException("Cannot load spectra");
+            }
+			return scans;
 		}
 	}
 }

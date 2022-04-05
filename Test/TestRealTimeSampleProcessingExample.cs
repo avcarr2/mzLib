@@ -1,9 +1,6 @@
 ﻿using InstrumentControl;
-using IO.MzML;
-using IO.ThermoRawFileReader;
 using MassSpectrometry;
 using NUnit.Framework;
-using Proteomics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -35,12 +32,7 @@ namespace Test
 			//string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\2021-01-06_TopDownStandard_YeastFraction1.raw";
 			string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\OneScanProteinStandard.mzML";
 
-			List<MsDataScan> scans = new();
-			string scanType = filepath.Split('.')[1].Trim();
-			if (scanType.Equals("mzML"))
-				scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
-			if (scanType.Equals("raw"))
-				scans = ThermoRawFileReader.LoadAllStaticData(filepath).GetAllScansList();
+			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
 			scans = scans.Where(p => p.MsnOrder == 1).ToList();
 
 			foreach (var scan in scans)
@@ -62,15 +54,14 @@ namespace Test
 		public static void TestingRealTimeProcessingOnSearchResults()
         {
 			double percentToRemove = 30;
+			double percentToMatch = 80;
 
 			// Loads in scans
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
-			//string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\2021-01-06_TopDownStandard_YeastFraction1.raw"; // for me to run with full LCMS run
-			var scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
+			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
 
 			// Loads in MM-TD search results of the above scans, pulls out the top scoring 100, and treats half as the database
 			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
-			//string psmFile = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\TDYestFractionMMFullResults\Task1-SearchTask\AllProteoforms.psmtsv"; //for me to run with full LCMS results
 			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
 			List<SimulatedProtein> removedProteins = proteins.GetRange(0, (int)(proteins.Count() * (percentToRemove / 100)));
 			proteins.RemoveRange(0, (int)(proteins.Count() * (percentToRemove / 100)));
@@ -84,9 +75,8 @@ namespace Test
 			{
 				processingExample.ScanProcessingQueue.Enqueue(scan);
 				processingExample.ProteoformProcessingEngine();
-				selectedMasses.AddRange(processingExample.BestMatchedPeaks);
+				selectedMasses.AddRange(processingExample.PeaksToFragment);
 			}
-			var groupedmasses = selectedMasses.GroupBy(p => Math.Round(p, 2)).ToList();
 
 			// Iterates through all proteins that were removed from the database, creates an array of their masses, and sets the mass to 0 if that mass was identified to be fragmented by the program
 			double[] removedProteinMasses = removedProteins.Select(p => p.MonoisotopicMass).ToArray();
@@ -98,17 +88,16 @@ namespace Test
 				}
 			}
 
-			double percentOfRemovedProteins = (double)removedProteins.Count() * 0.30;
-			int countOfRemovedProteinsThatWereNotSelected = removedProteinMasses.Count(p => p != 0);
-			Assert.GreaterOrEqual(percentOfRemovedProteins, countOfRemovedProteinsThatWereNotSelected);
-
+			double percentOfRemovedProteinsSelectedForFragmentation = removedProteinMasses.Count(p => p == 0) / (double)removedProteins.Count * 100;
+			Assert.GreaterOrEqual(percentOfRemovedProteinsSelectedForFragmentation, percentToMatch);
 		}
 
 		[Test]
 		public static void TestTimingOfProteoformProcessingEngine()
         {
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
-			var scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
+			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
+
 			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
 			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
 			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
@@ -129,7 +118,7 @@ namespace Test
 			double maxTime = times.Max();
 			double avgTime = times.Average();
 
-			Console.WriteLine("Average Time: {0} /n Max Time: {1} /n Min Time: {2}", avgTime, maxTime, minTime);
+			Console.WriteLine("Average Time: {0} \n Max Time: {1} \n Min Time: {2}", avgTime, maxTime, minTime);
 			Assert.That(250 >= avgTime);
 			Assert.That(250 >= maxTime);
 		}
