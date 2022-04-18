@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using UsefulProteomicsDatabases;
 
 namespace InstrumentControl
+
 {	/// <summary>
 	/// Class designed to process to process databases
 	/// </summary>
@@ -19,15 +20,22 @@ namespace InstrumentControl
     {
 		public List<SimulatedProtein> ProteinList { get; private set; }
 		public double[] ProteinIndex { get; private set; }
-		public MS1DatabaseParser(string fileName)
+		private int Threads;
+
+		/// <summary>
+		/// Construct for MS1DatabaseParser that loads in the database from its file location.
+		/// Currently only supports fasta files
+		/// </summary>
+		public MS1DatabaseParser(string fileName, int threads = 1)
 		{
 			// TODO: Add Ability to use other types of databases
 			List<Protein> proteins = new();
 			ProteinList = new();
+			Threads = threads;
 			if (fileName.Contains(".fasta"))
 			{
 				proteins = ProteinDbLoader.LoadProteinFasta(fileName, true, DecoyType.None, false, out var dbErrors);
-				DatabaseProcessing(proteins);
+				LoadProteinDataAsSimulatedProtein(proteins);
 			}
 			else
 			{
@@ -35,29 +43,49 @@ namespace InstrumentControl
 			}
 		}
 
-		public MS1DatabaseParser(List<SimulatedProtein> proteinList)
+		/// <summary>
+		/// Constructor for MS1DatabaseParser that accepts a list of SimulatedProteins
+		/// </summary>
+		/// <param name="proteinList"></param>
+		public MS1DatabaseParser(List<SimulatedProtein> proteinList, int threads = 1)
 		{
+			Threads = threads;
 			ProteinList = proteinList.OrderBy(p => p.MonoisotopicMass).ToList();
 			ProteinIndex = ProteinList.OrderBy(m => m.MonoisotopicMass).Select(p => p.MonoisotopicMass).ToArray();
 		}
 
-		public void DatabaseProcessing(List<Protein> proteins)
+		/// <summary>
+		/// Loads in proteins as SimulatedProteins and populates the respective method fields
+		/// </summary>
+		public void LoadProteinDataAsSimulatedProtein(List<Protein> proteins)
 		{
-
-			// TODO parallelize this
-			// TODO add in ptm's (maybe gptmd style?)
-
-			foreach (var protein in proteins)
+			// TODO: Add in PTM's
+			int[] threads = Enumerable.Range(0, Threads).ToArray();
+			Parallel.ForEach(threads, index =>
 			{
-				SimulatedProtein simProt = new SimulatedProtein(protein);
-				ProteinList.Add(simProt);
-			}
+				for (; index < proteins.Count; index += Threads)
+				{
+					SimulatedProtein simProt = new(proteins[index]);
+					lock (ProteinList)
+                    {
+						ProteinList.Add(simProt);
+					}
+				}
+			});
+
+			//foreach (var protein in proteins)
+			//{
+			//	SimulatedProtein simProt = new SimulatedProtein(protein);
+			//	ProteinList.Add(simProt);
+			//}
 			ProteinList = ProteinList.OrderBy(p => p.MonoisotopicMass).ToList();
 			ProteinIndex = ProteinList.OrderBy(m => m.MonoisotopicMass).Select(p => p.MonoisotopicMass).ToArray();
-
 		}
 
-		// Takes in the filepath of a psmtsv and returns the proteins
+		/// <summary>
+		/// Takes in the filepath of a psmtsv and returns them as a list of SimulatedProteins.
+		/// Currently only returns those who do not have any ptm's
+		/// </summary>
 		public static List<SimulatedProtein> GetSimulatedProteinsFromPsmtsv(string filepath, bool onlyBaseSequences = true)
         {
 			List<SimulatedProtein> proteins = new();
@@ -88,9 +116,11 @@ namespace InstrumentControl
 			return proteins;
 		}
 
+		/// <summary>
+		/// Creates a List of MsDataScans from a spectra file. Currently supports MzML and raw
+		/// </summary>
 		public static List<MsDataScan> LoadAllScansFromFile(string filepath)
         {
-
 			List<MsDataScan> scans = new();
 			if (filepath.EndsWith(".mzML"))
 				scans = Mzml.LoadAllStaticData(filepath).GetAllScansList();
@@ -102,5 +132,26 @@ namespace InstrumentControl
             }
 			return scans;
 		}
+
+		/// <summary>
+		/// Creates a List of MsDataScans from a spectra file. Takes the OneBasedScanNumbers as inputs. Currently supports MzML and raw
+		/// </summary>
+		public static List<MsDataScan> LoadSelectScansFromFile(string filepath, int start, int end = -1)
+        {
+			if (end == -1)
+            {
+				end = start + 1;
+            }
+			List<MsDataScan> scans = LoadAllScansFromFile(filepath);
+			List<MsDataScan> trimmedScans = new();
+			//        for (; start < end + 1; start++)
+			//        {
+			//trimmedScans.Add(scans[start - 1]);
+			//        }
+			trimmedScans = scans.GetRange(start - 1, (end - start));
+			return trimmedScans;
+
+		}
+
 	}
 }

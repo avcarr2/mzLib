@@ -1,4 +1,5 @@
 ﻿using InstrumentControl;
+using IO.MzML;
 using MassSpectrometry;
 using NUnit.Framework;
 using System;
@@ -19,33 +20,6 @@ namespace Test
 			Environment.CurrentDirectory = TestContext.CurrentContext.TestDirectory;
 		}
 
-		[Test]
-		// Test designed to get me into debug mode to evaluate what is going on within the code
-		public static void TestRealTimeProcessing()
-		{
-			// Load in Database Data
-			string fileName = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\Six_Protein_Standard.fasta";
-			RealTimeSampleProcessingExample ProcessingExample = new(fileName, 20);
-
-
-			// Load in msScans and send them through the scan processor
-			//string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\2021-01-06_TopDownStandard_YeastFraction1.raw";
-			string filepath = @"C:\Users\Nic\Desktop\FileAccessFolder\API\RealTimeProcessingExample\OneScanProteinStandard.mzML";
-
-			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
-			scans = scans.Where(p => p.MsnOrder == 1).ToList();
-
-			foreach (var scan in scans)
-			{
-				
-				ProcessingExample.ScanProcessingQueue.Enqueue(scan);
-				ProcessingExample.ProteoformProcessingEngine();
-
-			}
-
-			Assert.That(true);
-		}
-
 		/// <summary>
 		/// Test takes a MetaMorpheus TopDown search and removes a third of the protein results then runs it thorugh the RealTimeSampleProcessingExample with the non-removed proteins as the database
 		/// Returns true if at least 70% of the removed database proteins are selected for fragmentation 
@@ -55,6 +29,7 @@ namespace Test
         {
 			double percentToRemove = 30;
 			double percentToMatch = 80;
+			int threads = 8;
 
 			// Loads in scans
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
@@ -67,7 +42,7 @@ namespace Test
 			proteins.RemoveRange(0, (int)(proteins.Count() * (percentToRemove / 100)));
 
 			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
-			RealTimeSampleProcessingExample processingExample = new(database);
+			RealTimeSampleProcessingExample processingExample = new(database, threads);
 
 			// Send the scans through the search engine and get a list of what it chooses to fragment
 			List<double> selectedMasses = new();
@@ -95,13 +70,13 @@ namespace Test
 		[Test]
 		public static void TestTimingOfProteoformProcessingEngine()
         {
+			int threads = 20;
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
 			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
-
 			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
 			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
-			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
-			RealTimeSampleProcessingExample processingExample = new(database);
+			MS1DatabaseParser database = new MS1DatabaseParser(proteins, threads);
+			RealTimeSampleProcessingExample processingExample = new(database, threads);
 
 			var stopWatch = new Stopwatch();
 			List<double> times = new();
@@ -114,14 +89,60 @@ namespace Test
 				times.Add(stopWatch.Elapsed.TotalMilliseconds);
 				stopWatch.Reset();
 			}
-			double minTime = times.Min();
-			double maxTime = times.Max();
-			double avgTime = times.Average();
 
-			Console.WriteLine("Average Time: {0} \n Max Time: {1} \n Min Time: {2}", avgTime, maxTime, minTime);
-			Assert.That(250 >= avgTime);
-			Assert.That(250 >= maxTime);
+			Console.WriteLine("Average Time: {0} \n Max Time: {1} \n Min Time: {2}", times.Average(), times.Max(), times.Min());
+			Assert.That(250 >= times.Average());
+			Assert.That(250 >= times.Max());
 		}
+
+		[Test]
+		public static void TestMS1SearchEngineFindPeakWithinDatabase()
+        {
+			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
+			List<MsDataScan> scans = MS1DatabaseParser.LoadSelectScansFromFile(filepath, 32, 34);
+			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
+			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
+			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
+			RealTimeSampleProcessingExample processingExample = new(database, 6);
+
+			for (int i = 0; i < scans.Count; i++)
+            {
+				processingExample.ScanProcessingQueue.Enqueue(scans[i]);
+				processingExample.ProteoformProcessingEngine();
+				short[] testTable = new short[processingExample.SearchEngine.ScoreTable.Length];
+				if (i == 0)
+					testTable[42] = 1;
+				else if (i == 1)
+					testTable[51] = 1;
+				Assert.AreEqual(testTable, processingExample.SearchEngine.ScoreTable);
+			}
+		}
+
+		[Test]
+		public static void TestMS1SearchEngineMultiThreading()
+        {
+			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
+			List<MsDataScan> scans = MS1DatabaseParser.LoadSelectScansFromFile(filepath, 32);
+			string psmFile = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMMResult.psmtsv");
+			List<SimulatedProtein> proteins = MS1DatabaseParser.GetSimulatedProteinsFromPsmtsv(psmFile);
+			MS1DatabaseParser database = new MS1DatabaseParser(proteins);
+			RealTimeSampleProcessingExample processingExample = new(database, 1, 20, 5);
+			RealTimeSampleProcessingExample processingExample2 = new(database, 2, 20, 5);
+			RealTimeSampleProcessingExample processingExample6 = new(database, 6, 20, 5);
+
+			processingExample.ScanProcessingQueue.Enqueue(scans[0]);
+			processingExample2.ScanProcessingQueue.Enqueue(scans[0]);
+			processingExample6.ScanProcessingQueue.Enqueue(scans[0]);
+			processingExample.ProteoformProcessingEngine();
+			processingExample2.ProteoformProcessingEngine();
+			processingExample6.ProteoformProcessingEngine();
+
+			Assert.AreEqual(processingExample.PeaksToFragment, processingExample2.PeaksToFragment);
+			Assert.AreEqual(processingExample.PeaksToFragment, processingExample6.PeaksToFragment);
+			Assert.AreEqual(processingExample.SearchEngine.ScoreTable, processingExample2.SearchEngine.ScoreTable);
+			Assert.AreEqual(processingExample.SearchEngine.ScoreTable, processingExample6.SearchEngine.ScoreTable);
+		}
+
 	}
 
 }

@@ -11,48 +11,82 @@ namespace InstrumentControl
     public class MS1SearchEngine
     {
         public PpmTolerance Tolerance { get; }
+        public short[] ScoreTable;
         protected readonly MS1DatabaseParser Database;
+        private int Threads;
 
         // Constructor will have the basic pieces put together and ready to receive a scan
-        public MS1SearchEngine(MS1DatabaseParser database, PpmTolerance tolerance)
+        public MS1SearchEngine(MS1DatabaseParser database, PpmTolerance tolerance, int threads = 1)
         {
             Tolerance = tolerance;
             Database = database;
+            Threads = threads;
         }
 
-        // Will process and the scan and returns a scoreTable with a high number representing a likely chance of the fragment existing in the database
-        public void FindPeakWithinDatabase(MsDataScan scan, out List<IsotopicEnvelope> envelopes, out int[] scoreTable, string searchType = "occurrences")
+        /// <summary>
+        /// Will process and the scan and returns a scoreTable with a high number representing a likely chance of the fragment existing in the database
+        /// </summary>
+        public List<IsotopicEnvelope> FindPeakWithinDatabase(MsDataScan scan, string searchType = "boolean")
         {
             // deconvolue scan (eventually switch to unidec?)
             int minAssumedChargeState = 2;
             int maxAssumedChargeState = 60;
             int deconvolutionTolerancePpm = 6;
             int intensityRatio = 3;
-            envelopes = scan.MassSpectrum.Deconvolute(scan.MassSpectrum.Range, minAssumedChargeState, maxAssumedChargeState, deconvolutionTolerancePpm, intensityRatio).ToList();
-            scoreTable = new int[envelopes.Count];
-            var envelopesWithMassInDatabase = envelopes.FindAll(FindWithinMass);
+            List<IsotopicEnvelope> envelopes = scan.MassSpectrum.Deconvolute(scan.MassSpectrum.Range, minAssumedChargeState, maxAssumedChargeState, deconvolutionTolerancePpm, intensityRatio).ToList();
+            ScoreTable = new short[envelopes.Count];
+            List<IsotopicEnvelope> envelopesWithMassInDatabase = new();
+            int[] threads = Enumerable.Range(0, Threads).ToArray();
 
             switch (searchType)
             {
                 // score represents the number of masses in the database within tolerance
-                case "occurrences": 
+                case "occurrences":
+                    envelopesWithMassInDatabase = envelopes.FindAll(FindInDatabaseWithinMassTolerance);
                     foreach (var match in envelopesWithMassInDatabase)
                     {
-                        scoreTable[envelopes.IndexOf(match)] = Database.ProteinList.Count(p => Tolerance.Within(match.MonoisotopicMass, p.MonoisotopicMass));
+                        ScoreTable[envelopes.IndexOf(match)] = (short)Database.ProteinList.Count(p => Tolerance.Within(match.MonoisotopicMass, p.MonoisotopicMass));
                     }
                     break;
                 // score of 1 means the mass was found within the database within tolerance
                 case "boolean":
-                    foreach (var match in envelopesWithMassInDatabase)
+                    Parallel.ForEach(threads, index =>
                     {
-                        scoreTable[envelopes.IndexOf(match)] = 1;
-                    }
+                        for (; index < envelopes.Count; index += Threads)
+                        {
+                            if (FindInDatabaseWithinMassTolerance2(envelopes[index]))
+                            {
+                                lock (ScoreTable)
+                                {
+                                    ScoreTable[index] = 1;
+                                }
+                            }
+                        }
+                    });
+
+                    //envelopesWithMassInDatabase = envelopes.FindAll(FindInDatabaseWithinMassTolerance);
+                    //Parallel.ForEach(threads, index =>
+                    //{
+                    //    for (; index < envelopesWithMassInDatabase.Count; index += Threads)
+                    //    {
+                    //        ScoreTable[localEnvelopes.IndexOf(envelopesWithMassInDatabase[index])] = 1;
+                    //    }
+                    //});
+
+                    //envelopesWithMassInDatabase = envelopes.FindAll(FindInDatabaseWithinMassTolerance);
+                    //foreach (var match in envelopesWithMassInDatabase)
+                    //{
+                    //    ScoreTable[envelopes.IndexOf(match)] = 1;
+                    //}
                     break;
             }
+            return envelopes;
         }
 
-        // Explicit predicate delegate for finding if the envelope exists within the database by monoisotopic mass 
-        private bool FindWithinMass(IsotopicEnvelope envelope)
+        /// <summary>
+        /// Explicit predicate delegate for finding if the envelope exists within the database by monoisotopic mass 
+        /// </summary>
+        private bool FindInDatabaseWithinMassTolerance(IsotopicEnvelope envelope)
         {
             if (Database.ProteinList.Any(p => p.MonoisotopicMass >= Tolerance.GetMinimumValue(envelope.MonoisotopicMass) && p.MonoisotopicMass <= Tolerance.GetMaximumValue(envelope.MonoisotopicMass)))
             {
@@ -63,6 +97,27 @@ namespace InstrumentControl
                 return false;
             }
         }
+
+        private bool FindInDatabaseWithinMassTolerance2(IsotopicEnvelope envelope)
+        {
+            int index = Array.BinarySearch(Database.ProteinIndex, envelope.MonoisotopicMass);
+            if (index >= 0)
+            {
+                return true;
+            }
+            else
+            {
+                index = ~index;
+                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index - 1]))
+                    return true;
+                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index + 1]))
+                    return true;
+                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index]))
+                    return true;
+                return false;
+            }
+        }
+
 
     }
 }
