@@ -134,7 +134,7 @@ namespace InstrumentControl
 		}
 
 		/// <summary>
-		/// Creates a List of MsDataScans from a spectra file. Takes the OneBasedScanNumbers as inputs. Currently supports MzML and raw
+		/// Creates a List of MsDataScans from a spectra file. Takes the OneBasedScanNumbers as inputs. 
 		/// </summary>
 		public static List<MsDataScan> LoadSelectScansFromFile(string filepath, int start, int end = -1)
         {

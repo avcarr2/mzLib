@@ -54,7 +54,7 @@ namespace InstrumentControl
                     {
                         for (; index < envelopes.Count; index += Threads)
                         {
-                            if (FindInDatabaseWithinMassTolerance2(envelopes[index]))
+                            if (FindInDatabaseWithinMassTolerance(envelopes[index]))
                             {
                                 lock (ScoreTable)
                                 {
@@ -88,7 +88,7 @@ namespace InstrumentControl
         /// </summary>
         private bool FindInDatabaseWithinMassTolerance(IsotopicEnvelope envelope)
         {
-            if (Database.ProteinList.Any(p => p.MonoisotopicMass >= Tolerance.GetMinimumValue(envelope.MonoisotopicMass) && p.MonoisotopicMass <= Tolerance.GetMaximumValue(envelope.MonoisotopicMass)))
+            if (Database.ProteinIndex.Any(p => Tolerance.Within(envelope.MonoisotopicMass, p)))
             {
                 return true;
             }
@@ -107,13 +107,16 @@ namespace InstrumentControl
             }
             else
             {
-                index = ~index;
-                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index - 1]))
+                index = ~index; // Will be the index of the closest element greater than the search term
+                if (index == Database.ProteinIndex.Length && Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index - 1]))
                     return true;
-                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index + 1]))
-                    return true;
-                if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index]))
-                    return true;
+                if (index > 0 && index < Database.ProteinIndex.Length)
+                {
+                    if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index - 1]))
+                        return true;
+                    if (Tolerance.Within(envelope.MonoisotopicMass, Database.ProteinIndex[index]))
+                        return true;
+                }
                 return false;
             }
         }
