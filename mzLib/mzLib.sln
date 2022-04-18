@@ -35,7 +35,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestFlashLFQ", "TestFlashLF
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InstrumentControl", "InstrumentControl\InstrumentControl.csproj", "{88F54B20-A8A0-4F2A-869D-6BB6B40FB06F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IMSScanClassExtensions", "IMSScanClassExtensions\IMSScanClassExtensions.csproj", "{CC1F7785-A143-451F-84B2-68AF376EE6B3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IMSScanClassExtensions", "IMSScanClassExtensions\IMSScanClassExtensions.csproj", "{CC1F7785-A143-451F-84B2-68AF376EE6B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

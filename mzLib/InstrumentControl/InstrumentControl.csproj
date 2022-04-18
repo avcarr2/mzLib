@@ -28,27 +28,35 @@
   <ItemGroup>
     <Reference Include="API-1.1">
       <HintPath>ThermoIAPIDependencies\lib\API-1.1.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="API-2.0">
       <HintPath>ThermoIAPIDependencies\lib\API-2.0.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="ESAPI-1.0">
       <HintPath>..\..\mzLibAustinInstrumentCongrol\InstrumentControl\ThermoIAPIDependencies\lib\exactive\ESAPI-1.0.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="ESAPI-1.1">
       <HintPath>ThermoIAPIDependencies\lib\exactive\ESAPI-1.1.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Fusion.API-1.0">
       <HintPath>ThermoIAPIDependencies\lib\Fusion.API-1.0.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Spectrum-1.0">
       <HintPath>ThermoIAPIDependencies\lib\Spectrum-1.0.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Thermo.TNG.Factory">
       <HintPath>ThermoIAPIDependencies\lib\tribrid\Thermo.TNG.Factory.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="VI-1.0">
       <HintPath>ThermoIAPIDependencies\lib\VI-1.0.dll</HintPath>
+      <Private>true</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
