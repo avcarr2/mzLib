@@ -36,23 +36,22 @@ namespace InstrumentControl
 		public override Queue<MsDataScan> ScanProcessingQueue { get { return _scanProcessingQueue; } }
 		public MS1DatabaseParser Database { get; }
 		public MS1SearchEngine SearchEngine { get; }
-		public int[] ScoreTable { get; private set; }
 		public List<IsotopicEnvelope> Envelopes { get; private set; }
-		public double[] PeaksToFragment { get; private set; } // May only be used for testing purpose, We shall see after the ICustomScan wrapper is built
+		public double[] PeaksToFragment { get; private set; } 
 
 
-		public RealTimeSampleProcessingExample(string databaseFileName, int ppmTolerance = 20, int peaksToKeep = 5)
+		public RealTimeSampleProcessingExample(string databaseFileName, int threads, int ppmTolerance = 20, int peaksToKeep = 5)
         {
-			Database = new(databaseFileName);
-			SearchEngine = new(Database, new PpmTolerance(ppmTolerance));
+			Database = new(databaseFileName, threads);
+			SearchEngine = new(Database, new PpmTolerance(ppmTolerance), threads);
 			PeaksToKeep = peaksToKeep;
 			PeaksToFragment = new double[peaksToKeep];
 		}
 
-		public RealTimeSampleProcessingExample(MS1DatabaseParser database, int ppmTolerance = 20, int peaksToKeep = 5)
+		public RealTimeSampleProcessingExample(MS1DatabaseParser database, int threads, int ppmTolerance = 20, int peaksToKeep = 5)
         {
 			Database = database;
-			SearchEngine = new(Database, new PpmTolerance(ppmTolerance));
+			SearchEngine = new(Database, new PpmTolerance(ppmTolerance), threads);
 			PeaksToKeep = peaksToKeep;
 			PeaksToFragment = new double[peaksToKeep];
 		}
@@ -89,17 +88,11 @@ namespace InstrumentControl
 
 			// Deque the scan to be analyzed and clear any data from previous scans entereing this method
 			MsDataScan scan = ScanProcessingQueue.Dequeue();
-			List<IsotopicEnvelope> envelopes = new();
-            SearchEngine.FindPeakWithinDatabase(scan, out envelopes, out int[] scores, "boolean");
-            ScoreTable = scores;
-			Envelopes = envelopes;
 
-			List<IsotopicEnvelope> peaksNotFoundInDatabase = envelopes.Where(n => ScoreTable[envelopes.IndexOf(n)] == 0).OrderByDescending(p => p.TotalIntensity).ToList();
-            for (int i = 0; i < PeaksToKeep; i++)
-            {
-				PeaksToFragment[i] = peaksNotFoundInDatabase[i].MonoisotopicMass;
-            }
-			int breakpoint = 0;
+            List<IsotopicEnvelope> envelopes = SearchEngine.FindPeakWithinDatabase(scan);
+			// Could assign scores to ScoreTable and envelopes to Envelopes but I dont see the utility of them being accessible outside of the method atm
+            List<IsotopicEnvelope> peaksNotFoundInDatabase = envelopes.Where(n => SearchEngine.ScoreTable[envelopes.IndexOf(n)] == 0).OrderByDescending(p => p.TotalIntensity).ToList();
+            PeaksToFragment = peaksNotFoundInDatabase.Take(PeaksToKeep).Select(p => p.MonoisotopicMass).ToArray();
 		}
 	}
 }
