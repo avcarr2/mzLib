@@ -811,5 +811,16 @@ namespace MassSpectrometry
         {
             return new MzPeak(XArray[index], YArray[index]);
         }
+        public List<MzPeak> CalculateLogMZ(double adductMass)
+		{
+            return XArray.AsEnumerable()
+                // calculate Log(i - adduct mass) according to paper. 
+                .Select(i => Math.Log(i - adductMass))
+                // create a new MzPeak with Xarray and Yarray pair
+                .Zip(YArray, (i, j) => new MzPeak(i, j))
+                // convert to List. 
+                .ToList(); 
+
+		}
     }
 }
