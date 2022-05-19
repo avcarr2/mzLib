@@ -78,5 +78,51 @@ namespace MzLibUtil
             }
             return cnt.Values.All(c => c == 0);
         }
+        /// <summary>
+        /// Takes the intensity array (double[]) of a mass spectrum and returns the indices of the peaks. Used 
+        /// in deconvolution to identify peaks.  
+        /// </summary>
+        /// <param name="intArray"></param>
+        public static int[] FindPeaks(this double[] intArray)
+        {
+            return privateFindPeaks(intArray); 
+        }
+        // split out main functionality into private method because someobody may want to create 
+        // other overloads with different classes, say the MsDataScan class in the future. 
+        private static int[] privateFindPeaks(double[] sourceArray)
+        {
+            // TODO: Add some window so that small rises in the data doesn't get included. 
+            // Not sure how important that will be at the moment. My preliminary experiments 
+            // seem to indicate that it won't be. 
+            
+            List<int> peaksIndex = new List<int>();
+            for(int i = 0; i < sourceArray.Length; i++)
+            {
+                if (i == 0)
+                {
+                    if(sourceArray[i + 1] < sourceArray[i])
+                    {
+                        peaksIndex.Add(i); 
+                    }
+                    continue; 
+                } 
+                if(i == sourceArray.Length - 1)
+                {
+                    // will always return the last peak as a local max if it's
+                    // higher than the second to last point. 
+                    if (sourceArray[i - 1] < sourceArray[i])
+                    {
+                        peaksIndex.Add(i); 
+                    } 
+                    continue; 
+                }; 
+                if (sourceArray[i - 1] < sourceArray[i] &&
+                    sourceArray[i + 1] < sourceArray[i])
+                {
+                    peaksIndex.Add(i);  
+                }
+            }
+            return peaksIndex.ToArray(); 
+        }
     }
 }

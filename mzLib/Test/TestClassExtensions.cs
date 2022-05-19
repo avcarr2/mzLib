@@ -21,5 +21,49 @@ namespace Test
 
             CollectionAssert.AreEquivalent(expectedOutput, actualOutput);
         }
+        [Test]
+        public void TestFindPeaks()
+        {
+            double[] vals = Enumerable.Range(0, 1000)
+                .Select(i => (double)i/100)
+                .ToArray();
+            double[] singlePeakFunction = CreateFunction(vals, SinglePeakGeneratorFunction); 
+            int[] resultSinglePeak = ClassExtensions.FindPeaks(singlePeakFunction);
+            int expectedResults = 500; // ymax is at x = 5 (so index 500) for this function.
+            Assert.AreEqual(expectedResults, resultSinglePeak[0]);
+
+            // sine wave with 3 peaks from x = 0 to x = 10.
+            double[] sinWavePeaks = CreateFunction(vals, SinWaveGenerator);
+            int[] resultingMultiPeak = ClassExtensions.FindPeaks(sinWavePeaks); 
+            Assert.AreEqual(4, resultingMultiPeak.Length);
+
+            // cosine wave with four peaks from x = 0 to x = 10. 
+            // there is also a peak at x = 0. 
+            double[] cosineWavePeaks = CreateFunction(vals, CoSineWaveGenerator);
+            int[] resultingCosMultiPeak = ClassExtensions.FindPeaks(cosineWavePeaks);
+            Assert.AreEqual(4, resultingCosMultiPeak.Length); 
+        }
+        public static double[] CreateFunction(double[] values, Func<double, double> function)
+        {
+            double[] results = new double[values.Length]; 
+            for(int i = 0; i < values.Length; i++)
+            {
+               results[i] = function(values[i]);
+            }
+            return results; 
+        }
+        private double SinglePeakGeneratorFunction(double value)
+        {
+            return 0.3 * Math.Pow(value, 2) + (12.0 * value) - (0.2 * Math.Pow(value, 3));
+        }
+        public static double SinWaveGenerator(double value)
+        {
+            return Math.Sin(2 * value); 
+        }
+        private double CoSineWaveGenerator(double value)
+        {
+            return Math.Cos(2 * value); 
+        }
+
     }
 }

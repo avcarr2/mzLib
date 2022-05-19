@@ -282,5 +282,20 @@ namespace Test
                 Assert.AreEqual(Y[i], Math.Round(ms2.YArray[i], 2));
             }
         }
+        [Test]
+        // note: the entire test takes ~2.5 sec to run. This is almost entirely due to the creation of the 
+        // testSpectrum object (>2.1 sec to complete). Performance of the peak picking is <2ms according to the debugger. 
+        public void TestFindPeaksInSpectrum()
+        {
+            double[] vals = Enumerable.Range(0, 1000).Select(i => (double)i / 100D).ToArray(); 
+            // grab the nifty little function generator from TestClassExtensions.  
+            double[] intensities = TestClassExtensions.CreateFunction(vals, TestClassExtensions.SinWaveGenerator);
+            MzSpectrum testSpectrum = new(vals, intensities, true);
+            List<MzPeak> localMaxes = testSpectrum.FindPeaksInSpectrum(testSpectrum.YArray);
+
+            Assert.AreEqual(4, localMaxes.Count);
+            // tolerance is relatively large because the precision of the sine wave generator is only 2 decimals. 
+            Assert.AreEqual(Math.PI / 4, localMaxes[0].Mz, 0.005); 
+        }
     }
 }

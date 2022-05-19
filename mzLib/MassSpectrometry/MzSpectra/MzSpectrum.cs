@@ -811,5 +811,22 @@ namespace MassSpectrometry
         {
             return new MzPeak(XArray[index], YArray[index]);
         }
+        /// <summary>
+        /// Smooths all the peaks in the spectrum (K-Z smoothing), then gets the index of each local max. 
+        /// The next step is to convert the local maximums to log(m/z) values. 
+        /// </summary>
+        /// <param name="array">Dummy array for now.Will be updated to parameterless method once the 
+        /// KZSmoothing pull request gets approved. </param>
+        public List<MzPeak> FindPeaksInSpectrum(double[] array)
+        {
+            // add K-Z smoothing here once the pull request gets approved. 
+            int[] arrayOfIndices = MzLibUtil.ClassExtensions.FindPeaks(array);
+            List<MzPeak> localMaxes = new(); 
+            for(int i = 0; i < arrayOfIndices.Length; i++)
+            {
+                localMaxes.Add(GetPeak(arrayOfIndices[i])); 
+            }
+            return localMaxes; 
+        }
     }
 }
