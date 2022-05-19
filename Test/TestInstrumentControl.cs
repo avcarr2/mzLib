@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Test
 {
-	public static class TestRealTimeSampleProcessingExample
+	public static class TestInstrumentControl
 	{
 		[OneTimeSetUp]
 		public static void Setup()

@@ -23,12 +23,20 @@ namespace InstrumentControl
             Threads = threads;
         }
 
+
+
+
+
+
         /// <summary>
-        /// Will process and the scan and returns a scoreTable with a high number representing a likely chance of the fragment existing in the database
+        /// Will process a MsDataScan and populate the ScoreTable field based upon whether the scan contains proteins within the database based upon Monoisotopic mass
         /// </summary>
+        /// <param name="scan">Scan to be processed</param>
+        /// <param name="searchType"></param>
+        /// <returns>deconvoluted envelopes from the scan passed in</returns>
         public List<IsotopicEnvelope> FindPeakWithinDatabase(MsDataScan scan, string searchType = "boolean")
         {
-            // deconvolue scan (eventually switch to unidec?)
+            // deconvolue scan (eventually switch to unidec || austinDeconV?)
             int minAssumedChargeState = 2;
             int maxAssumedChargeState = 60;
             int deconvolutionTolerancePpm = 6;
@@ -48,6 +56,7 @@ namespace InstrumentControl
                         ScoreTable[envelopes.IndexOf(match)] = (short)Database.ProteinList.Count(p => Tolerance.Within(match.MonoisotopicMass, p.MonoisotopicMass));
                     }
                     break;
+
                 // score of 1 means the mass was found within the database within tolerance
                 case "boolean":
                     Parallel.ForEach(threads, index =>
@@ -63,25 +72,12 @@ namespace InstrumentControl
                             }
                         }
                     });
-
-                    //envelopesWithMassInDatabase = envelopes.FindAll(FindInDatabaseWithinMassTolerance);
-                    //Parallel.ForEach(threads, index =>
-                    //{
-                    //    for (; index < envelopesWithMassInDatabase.Count; index += Threads)
-                    //    {
-                    //        ScoreTable[localEnvelopes.IndexOf(envelopesWithMassInDatabase[index])] = 1;
-                    //    }
-                    //});
-
-                    //envelopesWithMassInDatabase = envelopes.FindAll(FindInDatabaseWithinMassTolerance);
-                    //foreach (var match in envelopesWithMassInDatabase)
-                    //{
-                    //    ScoreTable[envelopes.IndexOf(match)] = 1;
-                    //}
                     break;
             }
             return envelopes;
         }
+
+        #region Private Helpers
 
         /// <summary>
         /// Explicit predicate delegate for finding if the envelope exists within the database by monoisotopic mass 
@@ -121,6 +117,6 @@ namespace InstrumentControl
             }
         }
 
-
+        #endregion
     }
 }
