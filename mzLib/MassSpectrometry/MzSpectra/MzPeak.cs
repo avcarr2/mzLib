@@ -15,5 +15,9 @@
         {
             return string.Format("({0:G7},{1:G7})", Mz, Intensity);
         }
+        public void SetNewMz(double newVal)
+        {
+            Mz = newVal; 
+        }
     }
 }

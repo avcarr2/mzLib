@@ -811,5 +811,28 @@ namespace MassSpectrometry
         {
             return new MzPeak(XArray[index], YArray[index]);
         }
+        /// <summary>
+        /// Log transforms a spectra. 
+        /// </summary>
+        /// <param name="mzArray"></param>
+        /// <param name="adductMass"></param>
+        /// <returns></returns>
+        public double[] LogMZTransformedSpectra(double[] mzArray, double adductMass = 1.007)
+        {
+            double[] resultArray = new double[mzArray.Length]; 
+            for(int i = 0; i < mzArray.Length; i++)
+            {
+                resultArray[i] = MassSpecExtensions.LogMZTransformedMZ(mzArray[i], adductMass); 
+            }
+            return resultArray; 
+        }
+        public void LogMzTransformPeaksList(List<MzPeak> listPeaks)
+        {
+            for(int i = 0; i < listPeaks.Count; i++)
+            {
+                listPeaks[i].SetNewMz(MassSpecExtensions.LogMZTransformedMZ(listPeaks[i].Mz)); 
+            }
+        }
+        
     }
 }
