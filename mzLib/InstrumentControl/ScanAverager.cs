@@ -1,6 +1,7 @@
 ﻿using MassSpectrometry;
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.Statistics;
+using MzLibUtil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +13,7 @@ namespace InstrumentControl
 
     // Workflow: Take in set of scans --> MAYBE: Normalize intensity to TotalIonCurrent --> isolate an array of intensities for each mass --> reject outliers --> calculate weights of each point ---> calculate a weighted average
     // TODO deal with scans when they enter e.g. convert to an array of intensities for each m/z value
-    // TODO consider whether normaliztion is needed
-    // TODO calculate weight of each point IDEA: could do an enum with different weighting functions
+    // TODO consider whether normaliztion is neededs
 
     /// <summary>
     /// Class which takes input of n scans and averages them based upon the parameters set
@@ -23,9 +23,17 @@ namespace InstrumentControl
         #region Settings
         public static RejectionType RejectionType { get; set; } = RejectionType.NoRejection;
         public static WeightingType WeightingType { get; set; } = WeightingType.NoWeight;
+        public static SpectrumMergingType SpectrumMergingType { get; set; } = SpectrumMergingType.SpectrumBinning;
         public static double Percentile { get; set; } = 0.9;
         public static double MinSigmaValue { get; set; } = 1.3;
         public static double MaxSigmaValue { get; set; } = 1.3;
+        public static double BinSize { get; set; } = 0.02;
+
+        #endregion
+
+        #region Private Fields
+
+        private static int ScanNum { get; set; } = 0;
 
         #endregion
 
@@ -35,28 +43,14 @@ namespace InstrumentControl
         /// Main method of this class, receives the set of scans and returns the averaged scan
         /// </summary>
         /// <param name="scans"></param>
-        public static void AverageScans(List<MsDataScan> scans)
+        public static MsDataScan AverageScans(List<MsDataScan> scans)
         {
-            List<double[]> mzIntensityArrays = new();
-            List<double> mzValues = new();
-            foreach (var scan in scans)
-            {
-                // TODO: Extract m/z values, line up the x and group the y into arrays and add to the mzArrays
+            // TODO: Normaize intensities to TIC
 
-                //mzValue.Add(mz) // stores the mz value (x-axis)
-                //mzIntensityArrays.Add(array) // stores all intensity values in array (y-axis)
-            }
+            // TODO: Allign Spectra
 
-            //for (int i = 0; i < mzArrays.Count; i++)
-            //{
-            //    averages[i] = ProcessSingleMzArray(mzIntensityArrays[i]);
-            //}
-
-
-            // dummy data
-            var mzInitialArray = new double[] { 10, 8, 6, 4, 2, 0 };
-            ProcessSingleMzArray(mzInitialArray);
-
+            MsDataScan compositeSpectra = CombineSpectra(scans);
+            return compositeSpectra;
         }
 
         /// <summary>
@@ -67,82 +61,12 @@ namespace InstrumentControl
         public static double ProcessSingleMzArray(double[] mzInitialArray)
         {
             double[] trimmedArray = RejectOutliers(mzInitialArray);
-            double[] weights = CalculateWeights(trimmedArray);
+            double[] weights = CalculateWeights(trimmedArray, WeightingType);
             double average = CalculateAverage(trimmedArray, weights);
 
             return average;
         }
-
-        /// <summary>
-        /// Calls the specific rejection function based upon the current static field RejectionType
-        /// </summary>
-        /// <param name="mzValues">list of mz values to evaluate<</param>
-        /// <returns></returns>
-        public static double[] RejectOutliers(double[] mzValues)
-        {
-            double[] trimmedMzValues = mzValues;
-            switch (RejectionType)
-            {
-                case RejectionType.NoRejection:
-                    break;
-
-                case RejectionType.MinMaxClipping:
-                    trimmedMzValues = MinMaxClipping(mzValues);
-                    break;
-
-                case RejectionType.PercentileClipping:
-                    trimmedMzValues = PercentileClipping(mzValues, Percentile);
-                    break;
-
-                case RejectionType.SigmaClipping:
-                    trimmedMzValues= SigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
-                    break;
-
-                case RejectionType.WinsorizedSigmaClipping:
-                    trimmedMzValues = WinsorizedSigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
-                    break;
-
-                case RejectionType.AveragedSigmaClipping:
-                    trimmedMzValues = AveragedSigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
-                    break;
-            }
-            return trimmedMzValues;
-        }
-
-        /// <summary>
-        /// Calls the specicic funtion based upon the settings to calcuate the weight for each value when averaging
-        /// </summary>
-        /// <param name="mzValues"></param>
-        public static double[] CalculateWeights(double[] mzValues)
-        {
-            double[] weights = new double[mzValues.Length];
-
-            switch (WeightingType)
-            {
-                case WeightingType.NoWeight:
-                    for (int i = 0; i < weights.Length; i++)
-                        weights[i] = 1;
-                    break;
-
-                case WeightingType.NormalDistribution:
-                    WeightByNormalDistribution(mzValues, ref weights);
-                    break;
-
-                case WeightingType.CauchyDistribution:
-                    WeightByCauchyDistribution(mzValues, ref weights);
-                    break;
-
-                case WeightingType.PoissonDistribution:
-                    WeightByPoissonDistribution(mzValues, ref weights);
-                    break;
-
-                case WeightingType.GammaDistribution:
-                    WeightByGammaDistribution(mzValues, ref weights);
-                    break;
-            }           
-            return weights;
-        }
-
+        
         /// <summary>
         /// Calculates the weighted average value for each m/z point passed to it
         /// </summary>
@@ -166,13 +90,14 @@ namespace InstrumentControl
         /// <param name="rejectionType">rejection type to be used</param>
         /// <param name="percentile">percentile for percentile clipping rejection type</param>
         /// <param name="sigma">sigma value for sigma clipping rejection types</param>
-        public static void SetValues(RejectionType rejectionType = RejectionType.NoRejection, WeightingType weightingType = WeightingType.NoWeight, double percentile = 0.9, double minSigma = 1.3, double maxSigma = 1.3)
+        public static void SetValues(RejectionType rejectionType = RejectionType.NoRejection, WeightingType intensityWeighingType = WeightingType.NoWeight, double percentile = 0.9, double minSigma = 1.3, double maxSigma = 1.3, double binSize = 0.02)
         {
             RejectionType = rejectionType;
-            WeightingType = weightingType;
+            WeightingType = intensityWeighingType;
             Percentile = percentile;
             MinSigmaValue = minSigma;
             MaxSigmaValue = maxSigma;
+            BinSize = binSize;
         }
 
         /// <summary>
@@ -185,11 +110,52 @@ namespace InstrumentControl
             Percentile = 0.9;
             MinSigmaValue = 1.3;
             MaxSigmaValue = 1.3;
+            BinSize = 0.02;
         }
 
         #endregion
 
         #region Rejection Functions
+
+        /// <summary>
+        /// Calls the specific rejection function based upon the current static field RejectionType
+        /// </summary>
+        /// <param name="mzValues">list of mz values to evaluate<</param>
+        /// <returns></returns>
+        public static double[] RejectOutliers(double[] mzValues, int scanCount = 0)
+        {
+            double[] trimmedMzValues = mzValues;
+            switch (RejectionType)
+            {
+                case RejectionType.NoRejection:
+                    break;
+
+                case RejectionType.MinMaxClipping:
+                    trimmedMzValues = MinMaxClipping(mzValues);
+                    break;
+
+                case RejectionType.PercentileClipping:
+                    trimmedMzValues = PercentileClipping(mzValues, Percentile);
+                    break;
+
+                case RejectionType.SigmaClipping:
+                    trimmedMzValues = SigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
+                    break;
+
+                case RejectionType.WinsorizedSigmaClipping:
+                    trimmedMzValues = WinsorizedSigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
+                    break;
+
+                case RejectionType.AveragedSigmaClipping:
+                    trimmedMzValues = AveragedSigmaClipping(mzValues, MinSigmaValue, MaxSigmaValue);
+                    break;
+
+                case RejectionType.BelowThresholdRejection:
+                    trimmedMzValues = BelowThresholdRejection(mzValues, scanCount);
+                    break;
+            }
+            return trimmedMzValues;
+        }
 
         /// <summary>
         /// Reject the max and min of the set
@@ -246,7 +212,9 @@ namespace InstrumentControl
                     }
                 }
             } while (n > 0);
-            return values.ToArray();
+            double[] val = values.ToArray();
+            CheckValuePassed(val);
+            return val;
         }
 
         /// <summary>
@@ -293,7 +261,9 @@ namespace InstrumentControl
                     }
                 }
             } while (n > 0) ;
-            return values.ToArray();
+            double[] val = values.ToArray();
+            CheckValuePassed(val);
+            return val;
         }
 
         /// <summary>
@@ -326,11 +296,175 @@ namespace InstrumentControl
                     }
                 }
             } while (n > 0);
-            return values.ToArray();
+            double[] val = values.ToArray();
+            CheckValuePassed(val);
+            return val;
         }
+
+        /// <summary>
+        /// Sets the array of mz values to null if they have 25% or fewer values than the number of scans
+        /// </summary>
+        /// <param name="initialValues">array of mz values to evaluate</param>
+        /// <param name="scanCount">number of scans used to create initialValues</param>
+        /// <returns></returns>
+        public static double[] BelowThresholdRejection(double[] initialValues, int scanCount)
+        {
+            double cutoffValue = 0.20;
+            if (initialValues.Count() <= scanCount * cutoffValue)
+            {
+                initialValues = null;
+            }
+            else if (initialValues.Where(p => p != 0).Count() <= scanCount * cutoffValue)
+            {
+                initialValues = null;
+            }
+            return initialValues;
+        }
+
         #endregion
 
-        #region Weighting Functions
+        #region Merging Functions
+
+        /// <summary>
+        /// Calls the specific merging function based upon the current static field SpecrimMergingType
+        /// </summary>
+        /// <param name="scans"></param>
+        public static MsDataScan CombineSpectra(List<MsDataScan> scans)
+        {
+            MsDataScan compositeSpectrum = null;
+            switch (SpectrumMergingType)
+            {
+                case SpectrumMergingType.SpectrumBinning:
+                    compositeSpectrum = SpectrumBinning(scans, BinSize);
+                    break;
+
+                case SpectrumMergingType.MostSimilarSpectrum:
+                    MostSimilarSpectrum(scans);
+                    break;
+            }
+            return compositeSpectrum;
+        }
+
+        /// <summary>
+        /// Merges spectra into a two dimensional array of (m/z, int) values based upon their bin 
+        /// </summary>
+        /// <param name="scans">scans to be combined</param>
+        /// <returns>MSDataScan with merged values</returns>
+        public static MsDataScan SpectrumBinning(List<MsDataScan> scans, double binSize)
+        {
+            // calculate the bins to be utilizied
+            int scanCount = scans.Count();
+            double min = 100000;
+            double max = 0;
+            foreach (var scan in scans)
+            {
+                min = Math.Min((double)scan.MassSpectrum.FirstX, min);
+                max = Math.Max((double)scan.MassSpectrum.LastX, max);
+            }
+            int numberOfBins = (int)Math.Ceiling((max - min) * (1 / binSize));
+
+            (double, double)[][] bins = new (double, double)[numberOfBins][];
+
+            double[][] xValuesArray = new double[numberOfBins][];
+            double[][] yValuesArray = new double[numberOfBins][];
+            // go through each scan and place each (m/z, int) from the spectra into a jagged array
+            for (int i = 0; i < scans.Count(); i++)
+            {
+               for (int j = 0; j < scans[i].MassSpectrum.XArray.Length; j++)
+                {
+                    int binIndex = (int) Math.Floor((scans[i].MassSpectrum.XArray[j] - min) / binSize);
+                    if (xValuesArray[binIndex] == null)
+                    {
+                        xValuesArray[binIndex] = new double[scanCount];
+                        yValuesArray[binIndex] = new double[scanCount];
+                    }
+                    xValuesArray[binIndex][i] = (scans[i].MassSpectrum.XArray[j]);
+                    yValuesArray[binIndex][i] = (scans[i].MassSpectrum.YArray[j]);
+                }
+            }
+
+            // remove null and any bins below the threshold (currently 20%) i.e. only one scan had a peak in that bin
+            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
+            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
+            RejectionType temp = RejectionType;
+            RejectionType = RejectionType.BelowThresholdRejection;
+            for (int i = 0; i < yValuesArray.Length; i++)
+            {
+                yValuesArray[i] = RejectOutliers(yValuesArray[i], scanCount);
+                if (yValuesArray[i] == null)
+                {
+                    xValuesArray[i] = null;
+                }
+                else
+                {
+                    yValuesArray[i] = yValuesArray[i].Where(p => p != 0).ToArray();
+                }
+            }
+            temp = RejectionType;
+            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
+            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
+
+            // average the remaining arrays to create the composite spectrum
+            // this will clipping and avereraging for y values as indicated in the settings
+            double[] xArray = new double[xValuesArray.Length];
+            double[] yArray = new double[yValuesArray.Length];
+            for (int i = 0; i < yValuesArray.Length; i++)
+            {
+                xArray[i] = xValuesArray[i].Where(p => p != 0).Average();
+                yArray[i] = ProcessSingleMzArray(yValuesArray[i]);
+            }
+
+            // Create new MsDataScan to return
+            MzRange range = new(min, max);
+            MsDataScan mergedScan = new(scans, xArray, yArray, ScanNum, range);
+            ScanNum++;
+
+            return mergedScan;
+        }
+
+        public static void MostSimilarSpectrum(List<MsDataScan> scans)
+        {
+
+        }
+
+        #endregion
+
+        #region Weighing Functions
+
+        /// <summary>
+        /// Calls the specicic funtion based upon the settings to calcuate the weight for each value when averaging
+        /// </summary>
+        /// <param name="mzValues"></param>
+        public static double[] CalculateWeights(double[] mzValues, WeightingType weightingType)
+        {
+            double[] weights = new double[mzValues.Length];
+
+            switch (weightingType)
+            {
+                case WeightingType.NoWeight:
+                    for (int i = 0; i < weights.Length; i++)
+                        weights[i] = 1;
+                    break;
+
+                case WeightingType.NormalDistribution:
+                    WeightByNormalDistribution(mzValues, ref weights);
+                    break;
+
+                case WeightingType.CauchyDistribution:
+                    WeightByCauchyDistribution(mzValues, ref weights);
+                    break;
+
+                case WeightingType.PoissonDistribution:
+                    WeightByPoissonDistribution(mzValues, ref weights);
+                    break;
+
+                case WeightingType.GammaDistribution:
+                    WeightByGammaDistribution(mzValues, ref weights);
+                    break;
+            }
+            return weights;
+        }
+
 
         /// <summary>
         /// Weights the mzValues based upon a normal distribution
@@ -566,6 +700,7 @@ namespace InstrumentControl
         SigmaClipping,
         WinsorizedSigmaClipping,
         AveragedSigmaClipping,
+        BelowThresholdRejection
     }
 
     public enum WeightingType
@@ -575,5 +710,11 @@ namespace InstrumentControl
         CauchyDistribution,
         GammaDistribution,
         PoissonDistribution,
+    }
+
+    public enum SpectrumMergingType
+    {
+        SpectrumBinning,
+        MostSimilarSpectrum
     }
 }

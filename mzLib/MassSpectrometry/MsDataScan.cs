@@ -98,6 +98,25 @@ namespace MassSpectrometry
         }
 
         /// <summary>
+        /// Constructor for combing multiple MS1 MsDataScans into a single scan
+        /// </summary>
+        /// <param name="scans"></param>
+        /// <param name="xArray"></param>
+        /// <param name="yArray"></param>
+        public MsDataScan(List<MsDataScan> scans, double[] xArray, double[] yArray, int scanNum, MzRange range)
+        {
+            OneBasedScanNumber = scanNum;
+            //Polarity = polarity;
+            RetentionTime = scans.Average( p => p.RetentionTime);
+            ScanWindowRange = range;
+            ScanFilter = scans.Any(p => p.ScanFilter.Equals(scans[0].ScanFilter)) ? scans[0].ScanFilter : null;
+            MzAnalyzer = scans[0].MzAnalyzer;
+            TotalIonCurrent = scans.Average(p => p.TotalIonCurrent);
+            InjectionTime = scans[0].InjectionTime;
+            MassSpectrum = new MzSpectrum(xArray, yArray, true);
+        }
+
+        /// <summary>
         /// The mass spectrum associated with the scan
         /// </summary>
         public MzSpectrum MassSpectrum { get; protected set; }
