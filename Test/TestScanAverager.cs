@@ -14,15 +14,26 @@ namespace Test
     public static class TestScanAverager
     {
 
+		// TESTING IDEA: take scans, group them into five, send them through with different parametes
+		// and run a classic search on teh resulting composit scans. Print a txt file that has the 
+		// RejectionType, WeightingType, (paramertes of weighting if applicable), PSMs, peptides, proteins
+		// also save the psmtsv from the searches with identifying names.
+		// This should allow a simple way to optimize parameters
+
 		// Used to initialte the main method of the class, will need to turn into an actual test in the future
 		[Test]
-		public static void TestScanAverage()
+		public static void TestSpectrumBinning()
 		{
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
 			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
 
+			
 			var reducedScans = scans.Where(p => p.MsnOrder == 1).TakeLast(5).ToList();
 			ScanAverager.AverageScans(reducedScans);
+
+
+
+			ScanAverager.ResetValues();
 		}
 
 		[Test]
