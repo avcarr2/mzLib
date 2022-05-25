@@ -33,7 +33,7 @@ namespace InstrumentControl
 
         #region Private Fields
 
-        private static int ScanNum { get; set; } = 1;
+        private static int ScanNum { get; set; } = 0;
 
         #endregion
 
@@ -50,7 +50,6 @@ namespace InstrumentControl
             // TODO: Allign Spectra
 
             MsDataScan compositeSpectra = CombineSpectra(scans);
-
             return compositeSpectra;
         }
 
@@ -324,6 +323,112 @@ namespace InstrumentControl
 
         #endregion
 
+        #region Merging Functions
+
+        /// <summary>
+        /// Calls the specific merging function based upon the current static field SpecrimMergingType
+        /// </summary>
+        /// <param name="scans"></param>
+        public static MsDataScan CombineSpectra(List<MsDataScan> scans)
+        {
+            MsDataScan compositeSpectrum = null;
+            switch (SpectrumMergingType)
+            {
+                case SpectrumMergingType.SpectrumBinning:
+                    compositeSpectrum = SpectrumBinning(scans, BinSize);
+                    break;
+
+                case SpectrumMergingType.MostSimilarSpectrum:
+                    MostSimilarSpectrum(scans);
+                    break;
+            }
+            return compositeSpectrum;
+        }
+
+        /// <summary>
+        /// Merges spectra into a two dimensional array of (m/z, int) values based upon their bin 
+        /// </summary>
+        /// <param name="scans">scans to be combined</param>
+        /// <returns>MSDataScan with merged values</returns>
+        public static MsDataScan SpectrumBinning(List<MsDataScan> scans, double binSize)
+        {
+            // calculate the bins to be utilizied
+            int scanCount = scans.Count();
+            double min = 100000;
+            double max = 0;
+            foreach (var scan in scans)
+            {
+                min = Math.Min((double)scan.MassSpectrum.FirstX, min);
+                max = Math.Max((double)scan.MassSpectrum.LastX, max);
+            }
+            int numberOfBins = (int)Math.Ceiling((max - min) * (1 / binSize));
+
+            (double, double)[][] bins = new (double, double)[numberOfBins][];
+
+            double[][] xValuesArray = new double[numberOfBins][];
+            double[][] yValuesArray = new double[numberOfBins][];
+            // go through each scan and place each (m/z, int) from the spectra into a jagged array
+            for (int i = 0; i < scans.Count(); i++)
+            {
+               for (int j = 0; j < scans[i].MassSpectrum.XArray.Length; j++)
+                {
+                    int binIndex = (int) Math.Floor((scans[i].MassSpectrum.XArray[j] - min) / binSize);
+                    if (xValuesArray[binIndex] == null)
+                    {
+                        xValuesArray[binIndex] = new double[scanCount];
+                        yValuesArray[binIndex] = new double[scanCount];
+                    }
+                    xValuesArray[binIndex][i] = (scans[i].MassSpectrum.XArray[j]);
+                    yValuesArray[binIndex][i] = (scans[i].MassSpectrum.YArray[j]);
+                }
+            }
+
+            // remove null and any bins below the threshold (currently 20%) i.e. only one scan had a peak in that bin
+            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
+            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
+            RejectionType temp = RejectionType;
+            RejectionType = RejectionType.BelowThresholdRejection;
+            for (int i = 0; i < yValuesArray.Length; i++)
+            {
+                yValuesArray[i] = RejectOutliers(yValuesArray[i], scanCount);
+                if (yValuesArray[i] == null)
+                {
+                    xValuesArray[i] = null;
+                }
+                else
+                {
+                    yValuesArray[i] = yValuesArray[i].Where(p => p != 0).ToArray();
+                }
+            }
+            temp = RejectionType;
+            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
+            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
+
+            // average the remaining arrays to create the composite spectrum
+            // this will clipping and avereraging for y values as indicated in the settings
+            double[] xArray = new double[xValuesArray.Length];
+            double[] yArray = new double[yValuesArray.Length];
+            for (int i = 0; i < yValuesArray.Length; i++)
+            {
+                xArray[i] = xValuesArray[i].Where(p => p != 0).Average();
+                yArray[i] = ProcessSingleMzArray(yValuesArray[i]);
+            }
+
+            // Create new MsDataScan to return
+            MzRange range = new(min, max);
+            MsDataScan mergedScan = new(scans, xArray, yArray, ScanNum, range);
+            ScanNum++;
+
+            return mergedScan;
+        }
+
+        public static void MostSimilarSpectrum(List<MsDataScan> scans)
+        {
+
+        }
+
+        #endregion
+
         #region Weighing Functions
 
         /// <summary>
@@ -431,112 +536,6 @@ namespace InstrumentControl
 
         #endregion
 
-        #region Merging Functions
-
-        /// <summary>
-        /// Calls the specific merging function based upon the current static field SpecrimMergingType
-        /// </summary>
-        /// <param name="scans"></param>
-        public static MsDataScan CombineSpectra(List<MsDataScan> scans)
-        {
-            MsDataScan compositeSpectrum = null;
-            switch (SpectrumMergingType)
-            {
-                case SpectrumMergingType.SpectrumBinning:
-                    compositeSpectrum = SpectrumBinning(scans, BinSize);
-                    break;
-
-                case SpectrumMergingType.MostSimilarSpectrum:
-                    MostSimilarSpectrum(scans);
-                    break;
-            }
-            return compositeSpectrum;
-        }
-
-        /// <summary>
-        /// Merges spectra into a two dimensional array of (m/z, int) values based upon their bin 
-        /// </summary>
-        /// <param name="scans">scans to be combined</param>
-        /// <returns>MSDataScan with merged values</returns>
-        public static MsDataScan SpectrumBinning(List<MsDataScan> scans, double binSize)
-        {
-            // calculate the bins to be utilizied
-            int scanCount = scans.Count();
-            double min = 100000;
-            double max = 0;
-            foreach (var scan in scans)
-            {
-                min = Math.Min((double)scan.MassSpectrum.FirstX, min);
-                max = Math.Max((double)scan.MassSpectrum.LastX, max);
-            }
-            int numberOfBins = (int)Math.Ceiling((max - min) * (1 / binSize));
-
-            (double, double)[][] bins = new (double, double)[numberOfBins][];
-
-            double[][] xValuesArray = new double[numberOfBins][];
-            double[][] yValuesArray = new double[numberOfBins][];
-            // go through each scan and place each (m/z, int) from the spectra into a jagged array
-            for (int i = 0; i < scans.Count(); i++)
-            {
-                for (int j = 0; j < scans[i].MassSpectrum.XArray.Length; j++)
-                {
-                    int binIndex = (int)Math.Floor((scans[i].MassSpectrum.XArray[j] - min) / binSize);
-                    if (xValuesArray[binIndex] == null)
-                    {
-                        xValuesArray[binIndex] = new double[scanCount];
-                        yValuesArray[binIndex] = new double[scanCount];
-                    }
-                    xValuesArray[binIndex][i] = (scans[i].MassSpectrum.XArray[j]);
-                    yValuesArray[binIndex][i] = (scans[i].MassSpectrum.YArray[j]);
-                }
-            }
-
-            // remove null and any bins below the threshold (currently 20%) i.e. only one scan had a peak in that bin
-            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
-            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
-            RejectionType temp = RejectionType;
-            RejectionType = RejectionType.BelowThresholdRejection;
-            for (int i = 0; i < yValuesArray.Length; i++)
-            {
-                yValuesArray[i] = RejectOutliers(yValuesArray[i], scanCount);
-                if (yValuesArray[i] == null)
-                {
-                    xValuesArray[i] = null;
-                }
-                else
-                {
-                    yValuesArray[i] = yValuesArray[i].Where(p => p != 0).ToArray();
-                }
-            }
-            temp = RejectionType;
-            xValuesArray = xValuesArray.Where(p => p != null).ToArray();
-            yValuesArray = yValuesArray.Where(p => p != null).ToArray();
-
-            // average the remaining arrays to create the composite spectrum
-            // this will clipping and avereraging for y values as indicated in the settings
-            double[] xArray = new double[xValuesArray.Length];
-            double[] yArray = new double[yValuesArray.Length];
-            for (int i = 0; i < yValuesArray.Length; i++)
-            {
-                xArray[i] = xValuesArray[i].Where(p => p != 0).Average();
-                yArray[i] = ProcessSingleMzArray(yValuesArray[i]);
-            }
-
-            // Create new MsDataScan to return
-            MzRange range = new(min, max);
-            MsDataScan mergedScan = new(scans, xArray, yArray, ScanNum, range);
-            ScanNum++;
-
-            return mergedScan;
-        }
-
-        public static void MostSimilarSpectrum(List<MsDataScan> scans)
-        {
-
-        }
-
-        #endregion
-
         #region Private Helpers
 
         /// <summary>
@@ -556,54 +555,6 @@ namespace InstrumentControl
 
             if (!valueFound)
                 throw new Exception("All values were removed by clipping");
-        }
-
-        /// <summary>
-        /// Helper delegate method for sigma clipping
-        /// </summary>
-        /// <param name="value">the value in question</param>
-        /// <param name="median">median of the dataset</param>
-        /// <param name="standardDeviation">standard dev of the dataset</param>
-        /// <param name="sValueMin">the lower limit of inclusion in sigma (standard deviation) units</param>
-        /// <param name="sValueMax">the higher limit of inclusion in sigma (standard deviation) units</param>
-        /// <returns></returns>
-        private static bool SigmaClipping(double value, double median, double standardDeviation, double sValueMin, double sValueMax)
-        {
-            if ((median - value) / standardDeviation > sValueMin)
-            {
-                return true;
-            }
-            else if ((value - median) / standardDeviation > sValueMax)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Helper method to mutate the array of doubles based upon the median value
-        /// </summary>
-        /// <param name="initialValues">initial values to process</param>
-        /// <param name="medianLeftBound">minimum the element in the dataset is allowed to be</param>
-        /// <param name="medianRightBound">maxamum the element in the dataset is allowed to be</param>
-        /// <returns></returns>
-        private static double[] Winsorize(double[] initialValues, double medianLeftBound, double medianRightBound)
-        {
-            for (int i = 0; i < initialValues.Length; i++)
-            {
-                if (initialValues[i] < medianLeftBound)
-                {
-                    initialValues[i] = medianLeftBound;
-                }
-                else if (initialValues[i] > medianRightBound)
-                {
-                    initialValues[i] = medianRightBound;
-                }
-            }
-            return initialValues;
         }
 
         /// <summary>
@@ -687,6 +638,54 @@ namespace InstrumentControl
                 deviation = Math.Sqrt(sum / toCalc.Count() - 1);
             }
             return deviation;
+        }
+
+        /// <summary>
+        /// Helper delegate method for sigma clipping
+        /// </summary>
+        /// <param name="value">the value in question</param>
+        /// <param name="median">median of the dataset</param>
+        /// <param name="standardDeviation">standard dev of the dataset</param>
+        /// <param name="sValueMin">the lower limit of inclusion in sigma (standard deviation) units</param>
+        /// <param name="sValueMax">the higher limit of inclusion in sigma (standard deviation) units</param>
+        /// <returns></returns>
+        private static bool SigmaClipping(double value, double median, double standardDeviation, double sValueMin, double sValueMax)
+        {
+            if ((median - value) / standardDeviation > sValueMin)
+            {
+                return true;
+            }
+            else if ((value - median) / standardDeviation > sValueMax)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Helper method to mutate the array of doubles based upon the median value
+        /// </summary>
+        /// <param name="initialValues">initial values to process</param>
+        /// <param name="medianLeftBound">minimum the element in the dataset is allowed to be</param>
+        /// <param name="medianRightBound">maxamum the element in the dataset is allowed to be</param>
+        /// <returns></returns>
+        private static double[] Winsorize(double[] initialValues, double medianLeftBound, double medianRightBound)
+        {
+            for(int i = 0; i < initialValues.Length; i++)
+            {
+                if (initialValues[i] < medianLeftBound)
+                {
+                    initialValues[i] = medianLeftBound;
+                }
+                else if (initialValues[i] > medianRightBound)
+                {
+                    initialValues[i] = medianRightBound;
+                }
+            }
+            return initialValues;
         }
 
         #endregion
