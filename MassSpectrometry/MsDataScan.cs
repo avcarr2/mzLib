@@ -106,7 +106,8 @@ namespace MassSpectrometry
         public MsDataScan(List<MsDataScan> scans, double[] xArray, double[] yArray, int scanNum, MzRange range)
         {
             OneBasedScanNumber = scanNum;
-            //Polarity = polarity;
+            MsnOrder = 1;
+            IsCentroid = true; // questionable, just trying to get them saved and loaded correctly
             RetentionTime = scans.Average( p => p.RetentionTime);
             ScanWindowRange = range;
             ScanFilter = scans.Any(p => p.ScanFilter.Equals(scans[0].ScanFilter)) ? scans[0].ScanFilter : null;

@@ -26,12 +26,20 @@ namespace Test
 		{
 			string filepath = Path.Combine(TestContext.CurrentContext.TestDirectory, @"DataFiles\TDYeastFractionMS1.mzML");
 			List<MsDataScan> scans = MS1DatabaseParser.LoadAllScansFromFile(filepath);
+			List<MsDataScan> averagedScans = new List<MsDataScan>();
 
-			
-			var reducedScans = scans.Where(p => p.MsnOrder == 1).TakeLast(5).ToList();
-			ScanAverager.AverageScans(reducedScans);
+			// average all scans in groups of five from the yeast fraction
+			for(int i = 0; i < scans.Count; i += 5)
+            {
+				var fiveScans = scans.GetRange(i, 5);
+				var averagedScan = ScanAverager.AverageScans(fiveScans);
+				averagedScans.Add(averagedScan);
+            }
 
+			string outputPath = @"C:\Users\Nic\Desktop\OuputFolder\InstrumentControl\TestingmzMLGeneration\testing.mzML";
+			TEMPWriteCombinedScansAsmzML.SaveMergedScanAsMzml(averagedScans, outputPath);
 
+			var reloadedScans = MS1DatabaseParser.LoadAllScansFromFile(outputPath);
 
 			ScanAverager.ResetValues();
 		}
