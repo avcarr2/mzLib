@@ -1,0 +1,106 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="API-1.1" />
+    <None Remove="API-2.0" />
+    <None Remove="Fusion.API-1.0" />
+    <None Remove="Spectrum-1.0" />
+    <None Remove="Thermo.TNG.Factory" />
+    <None Remove="VI-1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.12.0" />
+	<PackageReference Include="System.Resources.Extensions" Version="4.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MassSpectrometry\MassSpectrometry.csproj" />
+    <ProjectReference Include="..\MzML\MzML.csproj" />
+    <ProjectReference Include="..\Proteomics\Proteomics.csproj" />
+    <ProjectReference Include="..\ThermoRawFileReader\ThermoRawFileReader.csproj" />
+    <ProjectReference Include="..\UsefulProteomicsDatabases\UsefulProteomicsDatabases.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="API-1.1">
+      <HintPath>ThermoIAPIDependencies\lib\API-1.1.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="API-2.0">
+      <HintPath>ThermoIAPIDependencies\lib\API-2.0.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="ESAPI-1.0">
+      <HintPath>..\..\mzLibAustinInstrumentCongrol\InstrumentControl\ThermoIAPIDependencies\lib\exactive\ESAPI-1.0.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="ESAPI-1.1">
+      <HintPath>ThermoIAPIDependencies\lib\exactive\ESAPI-1.1.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Fusion.API-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\Fusion.API-1.0.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Spectrum-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\Spectrum-1.0.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Thermo.TNG.Factory">
+      <HintPath>ThermoIAPIDependencies\lib\tribrid\Thermo.TNG.Factory.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="VI-1.0">
+      <HintPath>ThermoIAPIDependencies\lib\VI-1.0.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update=".DS_Store">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\.DS_Store">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\.DS_Store">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\API-1.1.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\API-1.1.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\API-2.0.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\API-2.0.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Fusion.API-1.0.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Fusion.API-1.0.XML">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Spectrum-1.0.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Spectrum-1.0.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Thermo.TNG.Factory.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\Thermo.TNG.Factory.XML">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ThermoIAPIDependencies\lib\VI-1.0.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>
