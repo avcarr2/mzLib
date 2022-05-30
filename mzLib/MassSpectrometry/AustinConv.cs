@@ -11,17 +11,20 @@ namespace MassSpectrometry
         public int[] Charges { get; set; }
         public double[] LogZ { get; set; }
         // driver code 
-        public void RunDeconvolution(int minCharge, int maxCharge)
+        public void RunDeconvolution(int minCharge, int maxCharge, List<MzPeak> fullSpectrumPeaks)
         {
-            CreatesChargesAndLogZ(minCharge, maxCharge); 
+            CreatesChargesAndLogZ(minCharge, maxCharge);
             // smooth spectrum 
-            // find peaks from smoothed spectrum
+            // find peaks from smoothed spectrum and convert to log(m/z) for easier computation
             // find all putatitive charge state envelopes
+            // FindAllChargeStateEnvelopes(); 
             // Add the real peaks to the charge state envelopes
             List<ChargeStateEnvelope> cse = new List<ChargeStateEnvelope>();
-            // create the isotopic envelopes 
+            // add each charge state envelope to the list
+
+            // 
         }
-        public void FindAllChargeStateEnvelopes(List<MzPeak> peaksList, double zeroThreshold, double peakFindThresh, 
+        public List<List<(int, double)>> FindAllChargeStateEnvelopes(List<MzPeak> peaksList, double zeroThreshold, double peakFindThresh, 
             int maxIterations)
         {
             List<List<(int, double)>> cseList = new();
@@ -33,7 +36,7 @@ namespace MassSpectrometry
                 UpdatePeakList(peaksList, chargeMZPairs.Select(i => i.Item2).ToList()); 
                 iterations++;
             }
-
+            return cseList; 
         }
         /// <summary>
         /// Takes list of MzPeak representing the peaks from the smoothed spectrum and 
@@ -248,15 +251,73 @@ namespace MassSpectrometry
     public class ChargeStateEnvelope
     {
         public List<ChargeState> ChargeStates { get; set; }
-        private List<MzPeak> InitialPeaks { get; set; }
-        public ChargeStateEnvelope()
+        public ChargeStateEnvelope(List<(int, double)> chargeMzPairs, List<MzPeak> peaksList, double peakFilterThreshold, 
+            double isotopeSpacingThresh, double mzWindow, double ppmTolerance)
         {
-            InitialPeaks = new List<MzPeak>();
             ChargeStates = new List<ChargeState>(); 
+            foreach((int, double) pair in chargeMzPairs)
+            {
+                ChargeState cs = new(pair);
+                cs.MatchMzWithPeak(peaksList, peakFilterThreshold);
+                cs.GetIsotopicPeaks(peaksList, isotopeSpacingThresh, mzWindow, ppmTolerance); 
+            }
         }
     }
     public class ChargeState
     {
+        public List<MzPeak> PeaksInChargeState { get; set; }
+        public int Charge { get; set; }
+        private (int, double) initialPair { get; set; }
+        public ChargeState((int, double) chargeMzPair)
+        {
+            Charge = chargeMzPair.Item1; 
+            PeaksInChargeState = new List<MzPeak>();    
+        }
+        public void MatchMzWithPeak(List<MzPeak> peaksList, double peakFilterThreshold)
+        {
+            // filter peaks
+            var filteredPeak = peaksList
+                .Where(i => i.Mz <= initialPair.Item2 - peakFilterThreshold && i.Mz >= initialPair.Item2 + peakFilterThreshold)
+                .ToList();
+            // find the max peak closest to the smoothed mz peak
+            PeaksInChargeState.Add(filteredPeak.MaxBy(i => i.Intensity)); 
+        }
+        public void GetIsotopicPeaks(List<MzPeak> peaksList, double isotopePeakSpacingThresh, double mzWindow, double ppmTolerance)
+        {
+            // using the m/z and the charge, get the peaks that belong to the isotopic distribution
+            MzPeak firstpeak = PeaksInChargeState[0];
+            double halfWindow = mzWindow / 2;
+            var filteredPeak = peaksList
+                .Where(i => i.Mz <= firstpeak.Mz - halfWindow && i.Mz >= firstpeak.Mz + halfWindow)
+                .ToList();
+            
+            // find all theoretical m/z values where the difference is 1 / charge state
+            double isotopeDiff = 1 / Charge;
+            double[] mzVals = new double[2 * Charge + 1];
+            int index = 0; 
+            for(int i = -Charge; i <= Charge ; i++)
+            {
+                mzVals[index] = firstpeak.Mz + i * isotopeDiff;
+                index++; 
+            }
+
+            // match the real peaks to the theoretical peaks. 
+            // order by intensity
+            // the order of the mzVals doesn't matter. 
+            var orderedPeaks = filteredPeak.OrderBy(i => i.Intensity).ToList(); 
+            for(int i = 0; i < filteredPeak.Count; i++)
+            {
+                for(int j = 0; j < mzVals.Length; j++)
+                {
+                    double ppmDiff = ppmTolerance * mzVals[j] * 1E6; 
+                    if(orderedPeaks[i].Mz > mzVals[j] - ppmDiff 
+                        && orderedPeaks[i].Mz < mzVals[j] + ppmDiff)
+                    {
+                        PeaksInChargeState.Add(orderedPeaks[i]); 
+                    }
+                }
+            }
+        }
 
     }
 }
