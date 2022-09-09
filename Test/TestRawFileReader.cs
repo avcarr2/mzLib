@@ -289,9 +289,10 @@ namespace Test
             MzmlMethods.CreateAndWriteMyMzmlWithCalibratedSpectra(f, outputfilepath, false);
         }
         [Test]
-        public static void ConvertMS1HeadingFromDirectory()
+        [TestCase(@"2022-06-21_Data")]
+        public static void ConvertMS1HeadingFromDirectory(string heading)
         {
-            string folderPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", @"2022-01-20_Data");
+            string folderPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles", heading);
             string[] fileNames = Directory.GetFiles(folderPath, "*.raw"); 
             for(int i = 0; i < fileNames.Length; i++)
 			{

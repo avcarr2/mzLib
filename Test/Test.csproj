@@ -384,6 +384,24 @@
     <None Update="DataFiles\2022-01-20_Data\Yeast_PEPPIFraction2_MSsidMS_Standard_MS1Res240K_MS2Res60K.raw">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracA_Rep1.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracA_Rep2.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracA_Rep3.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracB_Rep1.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracB_Rep2.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="DataFiles\2022-06-21_Data\22-06-21_SID_YeastFracB_Rep3.raw">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="DataFiles\BinGenerationTest.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
