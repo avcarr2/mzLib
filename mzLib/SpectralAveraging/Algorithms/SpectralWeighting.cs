@@ -108,6 +108,7 @@ public static class SpectralWeighting
                 else
                 {
                     scaleEstimates.TryAdd(x.Index, Math.Sqrt(scale));
+                    //scaleEstimates.TryAdd(x.Index, 1);
                 }
             });
 

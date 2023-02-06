@@ -20,11 +20,11 @@ namespace Test.SimulatedData
         public static double CalculateEnr(this double[] array, double referenceScale,
             double? noiseEstimateArray, double noiseEstimateReference)
         {
-            double scale = Math.Sqrt(BasicStatistics.BiweightMidvariance(array));
+           double scale = Math.Sqrt(BasicStatistics.BiweightMidvariance(array));
             double internalNoiseEstimate = 0d;
             if (!noiseEstimateArray.HasValue)
             {
-                bool success = MRSNoiseEstimator.MRSNoiseEstimation(array, 0.0001, out double noiseEstimateMrs);
+                bool success = MRSNoiseEstimator.MRSNoiseEstimation(array, 0.00001, out double noiseEstimateMrs);
                 internalNoiseEstimate = noiseEstimateMrs;
             }
             else
@@ -34,6 +34,7 @@ namespace Test.SimulatedData
 
             double k = referenceScale / scale;
             return noiseEstimateReference / (k * internalNoiseEstimate);
+            //return noiseEstimateReference / internalNoiseEstimate;
         }
     }
 }

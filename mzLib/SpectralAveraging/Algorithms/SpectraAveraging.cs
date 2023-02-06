@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MathNet.Numerics.Statistics;
 using MzLibUtil;
 
 namespace SpectralAveraging;
@@ -54,6 +55,8 @@ public static class SpectraAveraging
 
         // get weights
         var weights = SpectralWeighting.CalculateSpectraWeights(xArrays, yArrays, parameters.SpectralWeightingType);
+        var medians = yArrays.Select((i, x) => (x, i.Median())).ToDictionary(z => z.Item1, z => z.Item2); 
+
 
         // reject outliers and average bins
         List<(double mz, double intensity)> averagedPeaks = new();
@@ -68,7 +71,7 @@ public static class SpectraAveraging
                 if (!bins[keys[binIndex]].Any()) continue; 
                 lock (averagedPeaks)
                 {
-                    averagedPeaks.Add(AverageBin(bins[keys[binIndex]], weights));
+                    averagedPeaks.Add(AverageBin(bins[keys[binIndex]], weights, medians));
                 }
                 
             }
@@ -151,6 +154,22 @@ public static class SpectraAveraging
         foreach (var peak in peaksInBin)
         {
             numerator += peak.Intensity * weights[peak.SpectraId];
+            denominator += weights[peak.SpectraId];
+        }
+
+        var mz = peaksInBin.Select(p => p.Mz).Average();
+        var intensity = numerator / denominator;
+        return (mz, intensity);
+    }
+    private static (double, double) AverageBin(List<BinnedPeak> peaksInBin, Dictionary<int, double> weights, Dictionary<int, double> medians)
+    {
+        double refMedian = medians[0]; 
+        double numerator = 0;
+        double denominator = 0;
+
+        foreach (var peak in peaksInBin)
+        {
+            numerator += (peak.Intensity - medians[peak.SpectraId]) * weights[peak.SpectraId] + refMedian;
             denominator += weights[peak.SpectraId];
         }
 
