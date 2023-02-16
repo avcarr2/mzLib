@@ -250,3 +250,4 @@ ModelManifest.xml
 # Macintosh files
 **/.DS_Store
 
+/mzLib/Test/DataFiles/WT_ESO_+_B_B5_01_4035.mzML
