@@ -19,6 +19,7 @@ namespace Readers
                 ".raw" => new ThermoRawReaderFactory(filePath),
                 ".mzml" => new MzMLReaderFactory(filePath),
                 ".mgf" => new MgfReaderFactory(filePath),
+                ".d" => new BrukerReaderFactory(filePath), 
                 _ => throw new MzLibException("File extension not supported."),
             };
             return factory.Reader; 
