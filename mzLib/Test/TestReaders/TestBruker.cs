@@ -42,6 +42,8 @@ namespace Test.TestReaders
             Assert.That(brukerData.Scans[1].NativeId == "scan=2");
             Assert.That(brukerData.Scans[1].SelectedIonMZ, Is.EqualTo(426.009674).Within(0.001));
             Assert.That(brukerData.Scans[1].MsnOrder == 2);
+            // need to assert that the cumulative total of the y values equals the Total ion current. That would 
+            // be a good check for the y values being read correctly. 
 
         }
 
