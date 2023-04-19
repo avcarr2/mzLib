@@ -12,7 +12,7 @@ namespace MassSpectrometry
 {
     public class ClassicDeconvolutionAlgorithm : DeconvolutionAlgorithm
     {
-        private MzSpectrum spectrum;
+        protected MzSpectrum spectrum;
 
         public ClassicDeconvolutionAlgorithm(DeconvolutionParameters deconParameters) : base(deconParameters)
         {
@@ -175,7 +175,8 @@ namespace MassSpectrometry
             }
         }
 
-        private IsotopicEnvelope FindIsotopicEnvelope(int massIndex, double candidateForMostIntensePeakMz, double candidateForMostIntensePeakIntensity, double testMostIntenseMass, int chargeState, double deconvolutionTolerancePpm, double intensityRatioLimit, List<double> monoisotopicMassPredictions)
+        public IsotopicEnvelope FindIsotopicEnvelope(int massIndex, double candidateForMostIntensePeakMz, double candidateForMostIntensePeakIntensity, 
+            double testMostIntenseMass, int chargeState, double deconvolutionTolerancePpm, double intensityRatioLimit, List<double> monoisotopicMassPredictions)
         {
             double[] theoreticalMasses = allMasses[massIndex];
             double[] theoreticalIntensities = allIntensities[massIndex];

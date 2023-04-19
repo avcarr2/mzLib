@@ -271,6 +271,9 @@
     <None Update="DataFiles\BinGenerationTest.mzML">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="DataFiles\ExampleChargeStateIdentifierTest.mzML">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="DataFiles\ExampleChargeStateIdentifierTest.raw">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

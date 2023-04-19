@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Easy.Common.Extensions;
 using MathNet.Numerics;
 using MathNet.Numerics.Statistics;
+using MzLibUtil;
+using OpenMcdf.Extensions;
 using Readers; 
 namespace Test;
 using NUnit.Framework; 
@@ -11,40 +14,105 @@ using MassSpectrometry;
 
 public class TestChargeStateIdentifier
 {
+    //[Test]
+    //public void TestChargeStateIdentification()
+    //{
+    //    string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
+    //        "ExampleChargeStateIdentifierTest.raw");
+
+    //    var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList().First().MassSpectrum;
+    //    //scan = ChargeStateIdentifier.DownsampleData(scan, 5); 
+    //    var localMaxEnum = ChargeStateIdentifier.ConvertToIndexedTuple(scan.YArray);
+    //    var orderedEnum = localMaxEnum.OrderByDescending(i => i.Item2).ToList(); 
+    //    var chargeStateLadders = ChargeStateIdentifier.CreateChargeStateLadders(orderedEnum, scan.XArray, 5, 100, 
+    //        500, 2000).ToList();
+    //    var matchedLadders = ChargeStateIdentifier.MatchChargeStateLadders(scan, chargeStateLadders, orderedEnum, 5, out var ladderToIndicesMap);
+    //    var output = ChargeStateIdentifier.TransformToChargeStateLadderMatch(ladderToIndicesMap, matchedLadders, chargeStateLadders.ToList()).ToList();
+
+    //    int indexer = 0; 
+    //    // calculate fraction of masses occurring above 0.05 relative intensity
+    //    // you're going to have junk values that are additive to the harmonics, but not the true matching value.
+    //    // so I'm multiplying the percent of the theoretical peaks identified in the charge state envelope times the intensity explained to
+    //    // reduce the intensity explained by the harmonics while preserving that of the original peak. 
+
+    //    var bestScoringChargeStateLadderMatch = ScoreChargeStateLadderMatches(output, scan);
+    //    // convert to isotopic envelopes. 
+    //        // match to averagine? 
+
+    //    ChargeStateIdentifier csi = new ChargeStateIdentifier(new ClassicDeconvolutionParameters(5, 100, 4, 3));
+    //    var result = csi.FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch, scan).ToList();
+
+    //    HashSet<double> usedMzValues = new();
+    //    foreach (var envelope in result)
+    //    {
+    //        if (envelope.Peaks.Count < 5) continue; 
+    //        foreach (var mz in envelope.Peaks.Select(i => i.mz))
+    //        {
+    //            usedMzValues.Add(mz); 
+    //        }
+    //    }
+
+    //    var intersectedIndices =
+    //        (from x in Enumerable.Range(0, scan.XArray.Length)
+    //        from y in usedMzValues
+    //        where scan.XArray[x] == y
+    //        select x)
+    //        .OrderBy(i => i)
+    //        .ToArray();
+    //    List<double> newX = new();
+    //    List<double> newY = new();
+
+    //    int intersectionIndex = 0; 
+    //    for (int i = 0; i < scan.XArray.Length; i++)
+    //    {
+    //        if (intersectionIndex < intersectedIndices.Length && intersectedIndices[intersectionIndex] == i)
+    //        {
+    //            intersectionIndex++;
+    //            continue; 
+    //        }
+    //        else
+    //        {
+    //            newX.Add(scan.XArray[i]);
+    //            newY.Add(scan.YArray[i]);
+    //        }
+    //    }
+
+    //    var newSpectrum = new MzSpectrum(newX.ToArray(), newY.ToArray(), true); 
+
+
+    //}
     [Test]
-    public void TestChargeStateIdentification()
+    public void TestDeconvolution()
     {
         string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
-            "ExampleChargeStateIdentifierTest.raw");
+            "ExampleChargeStateIdentifierTest.mzML");
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.01);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
 
-        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList().First().MassSpectrum;
-        //scan = ChargeStateIdentifier.DownsampleData(scan, 5); 
-        var localMaxEnum = ChargeStateIdentifier.ConvertToIndexedTuple(scan.YArray);
-        var orderedEnum = localMaxEnum.OrderByDescending(i => i.Item2).ToList(); 
-        var chargeStateLadders = ChargeStateIdentifier.CreateChargeStateLadders(orderedEnum, scan.XArray, 5, 100, 
-            500, 2000).ToList();
-        var matchedLadders = ChargeStateIdentifier.MatchChargeStateLadders(scan, chargeStateLadders, orderedEnum, 5, out var ladderToIndicesMap);
-        var output = ChargeStateIdentifier.TransformToChargeStateLadderMatch(ladderToIndicesMap, matchedLadders, chargeStateLadders.ToList()).ToList();
+        ChargeStateDeconvolutionParams deconParams = new(5, 150, 5); 
+        ChargeStateIdentifier csi = new(deconParams);
 
-        int indexer = 0; 
-        // calculate fraction of masses occurring above 0.05 relative intensity
-        // you're going to have junk values that are additive to the harmonics, but not the true matching value.
-        // so I'm multiplying the percent of the theoretical peaks identified in the charge state envelope times the intensity explained to
-        // reduce the intensity explained by the harmonics while preserving that of the original peak. 
+        var results = csi.Deconvolute(scan, scan.Range).ToList();
+        results.OrderByDescending(i => i.Score).ForEach(i =>
+        {
+            if (i != null)
+            {
+                Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+            }
+        });
 
-        var bestScoringChargeStateLadderMatch = ScoreChargeStateLadderMatches(output, scan);
-        // convert to isotopic envelopes. 
-            // match to averagine? 
-        
-
-
+        ClassicDeconvolutionParameters deconvolution = new(1,150, 4.0, 3.0);
+        ClassicDeconvolutionAlgorithm classicDeconvolution = new ClassicDeconvolutionAlgorithm(deconvolution);
+        //var classResults = classicDeconvolution.Deconvolute(scan, scan.Range); 
+        //Console.WriteLine();
+        //foreach(var distinct in classResults.Select(i => i.MonoisotopicMass).Distinct())
+        //{
+        //    Console.WriteLine(distinct);
+        //}
     }
 
-    public ChargeStateLadderMatch ScoreChargeStateLadderMatches(List<ChargeStateLadderMatch> ladderMatches, MzSpectrum scan)
-    {
-        return ladderMatches.OrderByDescending(i =>
-            ScoreByIntensityExplained(i, scan) * CompareTheoreticalNumberChargeStatesVsActual(i)).First();
-    }
+
+
 
     public void CleanUpChargeStateLadderMatch(ChargeStateLadderMatch match, MzSpectrum spectra)
     {
@@ -91,10 +159,7 @@ public class TestChargeStateIdentifier
 
     }
 
-    public double CompareTheoreticalNumberChargeStatesVsActual(ChargeStateLadderMatch ladderMatch)
-    {
-        return ladderMatch.ChargesOfMatchingPeaks.Count / (double)ladderMatch.TheoreticalLadder.MzVals.Length; 
-    }
+    
 
     public double ScoreSequentialChargeStates(ChargeStateLadderMatch ladderMatch)
     {
@@ -108,10 +173,7 @@ public class TestChargeStateIdentifier
     }
 
 
-    public double ScoreByIntensityExplained(ChargeStateLadderMatch match, MzSpectrum spectrum, double threshold = 0.05)
-    {
-        return match.IntensitiesOfMatchingPeaks.Select(i => i / spectrum.YArray.Max()).Where(i => i >= threshold).Sum();
-    }
+    
 
     public void CalculateMasses(ChargeStateLadderMatch match)
     {
