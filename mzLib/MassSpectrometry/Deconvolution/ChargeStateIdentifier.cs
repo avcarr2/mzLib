@@ -203,9 +203,9 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
 
     private ChargeStateDeconvolutionParams DeconvolutionParams { get; set; }
-    public ChargeStateIdentifier(ChargeStateDeconvolutionParams deconParameters) : base(deconParameters)
+    public ChargeStateIdentifier(DeconvolutionParameters deconParameters) : base(deconParameters)
     {
-        DeconvolutionParams = deconParameters;
+        DeconvolutionParams = (ChargeStateDeconvolutionParams)deconParameters;
     }
     // int indexOfMaxIntensityPeak,
     // double[] mzValueArray, int minCharge, int maxCharge, double minMzValAllowed, double maxMzValAllowed,

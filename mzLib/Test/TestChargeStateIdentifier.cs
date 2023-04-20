@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.Xml;
+using System.Windows.Markup;
+using System.Windows.Media.Animation;
 using Easy.Common.Extensions;
 using Easy.Common.Interfaces;
 using MathNet.Numerics;
@@ -107,6 +110,62 @@ public class TestChargeStateIdentifier
                 }
             });
 
+        // get the charge states of the isotopic envelopes
+        var dictChargeStateEnvelopes = GetEnvelopes(results.CleanUpEnvelopes())
+            // toss the envelopes that have less than 
+            .OrderByDescending(i => i.Value.Sum(j => j.Score))
+            .Take(30)
+            .ToList(); 
+        // to plot: 
+        // x values: mz of most intense peak in isotopic envelopes 
+        // y values: most intense peak in isotopic envelope 
+        // charge state
+        // monoisotopic mass
+
+        // plot these three things on top of the original spectrum 
+
+        var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes); 
+
+
+    }
+
+    public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, IEnumerable<IsotopicEnvelope>> dictEnvelope)
+    {
+        List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> outputList =
+            new List<(double xVal, double yVal, int chargeState, double monoisotopicMass)>();
+
+        foreach (var kvp in dictEnvelope)
+        {
+            double mass = kvp.Key;
+            
+            foreach (var envelope in kvp.Value)
+            {
+                var maxpair = envelope.Peaks.MaxBy(i => i.intensity); 
+                int charge = envelope.Charge;
+                outputList.Add((maxpair.mz, maxpair.intensity, charge, mass));
+            }
+        }
+        return outputList;
+    }
+
+    public Dictionary<double,List<IsotopicEnvelope>> GetEnvelopes(IEnumerable<IsotopicEnvelope> envelopes)
+    {
+        // a charge state envelope shares a monoisotopic mass 
+        Dictionary<double, List<IsotopicEnvelope>> resultsDict = new(); 
+        // get the list of distinct monoisotopic masses. 
+        var distinctMonoisotopicMasses = envelopes
+            .Select(i => i.MonoisotopicMass)
+            .Distinct();
+
+        foreach (var monoMass in distinctMonoisotopicMasses)
+        {
+            // retrieve all the same monoisotopic masses 
+            var envelopesList = envelopes
+                .Where(i => i.MonoisotopicMass == monoMass).ToList(); 
+
+            resultsDict.Add(monoMass, envelopesList);
+        }
+        return resultsDict;
     }
 
 

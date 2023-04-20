@@ -12,6 +12,7 @@ namespace MassSpectrometry
     {
         ClassicDeconvolution,
         AlexDeconvolution,
+        AustinConv
     }
 
     /// <summary>
@@ -48,6 +49,8 @@ namespace MassSpectrometry
 
                 case DeconvolutionType.AlexDeconvolution:
                     break;
+                case DeconvolutionType.AustinConv:
+                    break; 
             }
 
             return DeconvolutionAlgorithm.Deconvolute(scan.MassSpectrum, rangeToGetPeaksFrom);
@@ -72,6 +75,9 @@ namespace MassSpectrometry
                 case DeconvolutionType.AlexDeconvolution:
                     DeconvolutionAlgorithm = new ExampleNewDeconvolutionAlgorithm(deconParameters);
                     break;
+                case DeconvolutionType.AustinConv:
+                    DeconvolutionAlgorithm = new ChargeStateIdentifier(deconParameters);
+                    break; 
 
                 default: throw new MzLibException("DeconvolutionType not yet supported");
             }
