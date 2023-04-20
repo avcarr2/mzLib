@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Easy.Common.Extensions;
+using Easy.Common.Interfaces;
 using MathNet.Numerics;
 using MathNet.Numerics.Statistics;
 using MzLibUtil;
@@ -82,107 +83,32 @@ public class TestChargeStateIdentifier
 
     //}
     [Test]
-    public void TestDeconvolution()
+    [TestCase(2,60)]
+    public void TestDeconvolution(int minCharge, int maxCharge)
     {
         string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
-            "ExampleChargeStateIdentifierTest.mzML");
+            "chargeStateDeconTest3raw.raw");
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.01);
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
 
-        ChargeStateDeconvolutionParams deconParams = new(5, 150, 5); 
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5); 
         ChargeStateIdentifier csi = new(deconParams);
 
         var results = csi.Deconvolute(scan, scan.Range).ToList();
-        results.OrderByDescending(i => i.Score).ForEach(i =>
-        {
-            if (i != null)
-            {
-                Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
-            }
-        });
-
-        ClassicDeconvolutionParameters deconvolution = new(1,150, 4.0, 3.0);
-        ClassicDeconvolutionAlgorithm classicDeconvolution = new ClassicDeconvolutionAlgorithm(deconvolution);
-        //var classResults = classicDeconvolution.Deconvolute(scan, scan.Range); 
-        //Console.WriteLine();
-        //foreach(var distinct in classResults.Select(i => i.MonoisotopicMass).Distinct())
-        //{
-        //    Console.WriteLine(distinct);
-        //}
-    }
-
-
-
-
-    public void CleanUpChargeStateLadderMatch(ChargeStateLadderMatch match, MzSpectrum spectra)
-    {
-        // examine the end and remove if non-consecutive. 
-        double[] diffs = new double[match.ChargesOfMatchingPeaks.Count - 1];
-        // if diff is greater than 1 => you need to check to see if the other, intermediate charge states exist
-        // criteria for if a charge state 
-        for (int i = 0; i < diffs.Length; i++)
-        {
-            double diff = match.ChargesOfMatchingPeaks[i] - match.ChargesOfMatchingPeaks[i + 1]; 
-
-            double tolerance = Math.Abs(1 - Math.Round(diff));
-            if (tolerance < 0.1)
-            {
-                continue;
-            }else if (tolerance >= 2)
-            {
-                match.ChargesOfMatchingPeaks.RemoveAt(i + 1);
-                match.IntensitiesOfMatchingPeaks.RemoveAt(i + 1);
-                match.MatchingMzPeaks.RemoveAt(i + 1);
-            }
-
-            double chargeState1 = match.ChargesOfMatchingPeaks[i];
-            double chargeState2 = match.ChargesOfMatchingPeaks[i + 1];
-            while (chargeState1 > chargeState2)
-            {
-                // look for the intermediate peaks in the original data. 
-                //Array.BinarySearch()
-                
-                //spectra.XArray
-
-                //chargeState1--; 
-            }
-
-        }
-
-
-        // examine the middle and see if there are any missing charge states. Check the data at an increased tolerance to see if they exist. 
-        
-    }
-
-    public void QualityControlOutputEnvelopes(List<ChargeStateLadderMatch> ladderMatches)
-    {
+        results
+            .CleanUpEnvelopes()
+            .OrderByDescending(i => i.TotalIntensity)
+            //.DistinctBy(i => i.MonoisotopicMass)
+            .ForEach(i => 
+            { 
+                if (i != null)
+                {
+                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+                }
+            });
 
     }
 
-    
-
-    public double ScoreSequentialChargeStates(ChargeStateLadderMatch ladderMatch)
-    {
-        double[] output = new double[ladderMatch.ChargesOfMatchingPeaks.Count - 1]; 
-        for (int i = 0; i < ladderMatch.ChargesOfMatchingPeaks.Count - 1; i++)
-        {
-            output[i] = ladderMatch.ChargesOfMatchingPeaks[i] - ladderMatch.ChargesOfMatchingPeaks[i + 1]; 
-        }
-
-        return 1 / output.Sum() / (double)output.Length; 
-    }
-
-
-    
-
-    public void CalculateMasses(ChargeStateLadderMatch match)
-    {
-        double[] masses = new double[match.ChargesOfMatchingPeaks.Count];
-        for (int i = 0; i < match.ChargesOfMatchingPeaks.Count; i++)
-        {
-            //match.ChargesOfMatchingPeaks[i]
-        }
-    }
 
     [Test]
     public void TestCreateChargeStateLadder()
@@ -195,5 +121,19 @@ public class TestChargeStateIdentifier
         double exptlMass2 = mass / charge + adductMass;
         Console.WriteLine(exptlMass + "; " + exptlMass2);
         Console.WriteLine("{0}", (exptlMass - adductMass) * charge);
+    }
+}
+
+public static class ListIsotopicEnvelopeExtensions
+{
+    public static IEnumerable<IsotopicEnvelope> CleanUpEnvelopes(this IEnumerable<IsotopicEnvelope> envelopes)
+    {
+        foreach (var envelope in envelopes)
+        {
+            if (envelope.Score > 0)
+            {
+                yield return envelope;
+            }
+        }
     }
 }
