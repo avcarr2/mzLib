@@ -306,7 +306,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 // forbidden masses and remove the index of the forbidden masses if they are present. 
                 if (forbiddenMasses.Contains(ladderMasses[j]))
                 {
-                    indicesList.Add((i,j));
+                    indicesList.Add((i, j));
                     continue;
                 }
                 // i will always be the larger value. 
@@ -344,7 +344,17 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             }).FirstOrDefault(); 
         }
     }
-    
+
+    public static double GetTheoreticalMostAbundantIsotopicPeak(int massIndex)
+    {
+        return mostIntenseMasses[massIndex];
+        
+    }
+
+    public static double GetDiffToMonoisotopic(int massIndex)
+    {
+        return diffToMonoisotopic[massIndex];
+    }
 
     public (double rsquared, double slope) CalcRSquared(ChargeStateLadderMatch cslm)
     {

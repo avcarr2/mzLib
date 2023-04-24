@@ -21,7 +21,8 @@ namespace MassSpectrometry
 
         public double Score { get; private set; }
 
-        public IsotopicEnvelope(List<(double mz, double intensity)> bestListOfPeaks, double bestMonoisotopicMass, int bestChargeState, double bestTotalIntensity, double bestStDev, int bestMassIndex)
+        public IsotopicEnvelope(List<(double mz, double intensity)> bestListOfPeaks, double bestMonoisotopicMass, 
+            int bestChargeState, double bestTotalIntensity, double bestStDev, int bestMassIndex)
         {
             Peaks = bestListOfPeaks;
             MonoisotopicMass = bestMonoisotopicMass;

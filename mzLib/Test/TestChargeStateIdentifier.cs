@@ -106,30 +106,36 @@ public class TestChargeStateIdentifier
             { 
                 if (i != null)
                 {
-                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+                    //Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
                 }
             });
 
         // get the charge states of the isotopic envelopes
         var dictChargeStateEnvelopes = GetEnvelopes(results.CleanUpEnvelopes())
-            // toss the envelopes that have less than 
+            // possible criteria for removing: 
+            // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
+            // peaks have less
             .OrderByDescending(i => i.Value.Sum(j => j.Score))
             .Take(30)
-            .ToList(); 
+            .ToDictionary(i => i.Key, i => i.Value); 
         // to plot: 
         // x values: mz of most intense peak in isotopic envelopes 
         // y values: most intense peak in isotopic envelope 
-        // charge state
-        // monoisotopic mass
+        // charge state 
+        // monoisotopic mass 
+
+        // how do you figure out where to divide the line bewteen real and harmonic? 
 
         // plot these three things on top of the original spectrum 
-
-        var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes); 
-
+        var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes);
+        foreach (var point in plottingPoints)
+        {
+            Console.WriteLine("{0},{1},{2},{3}", point.xVal, point.yVal, point.chargeState, point.monoisotopicMass);
+        }
 
     }
 
-    public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, IEnumerable<IsotopicEnvelope>> dictEnvelope)
+    public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, List<IsotopicEnvelope>> dictEnvelope)
     {
         List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> outputList =
             new List<(double xVal, double yVal, int chargeState, double monoisotopicMass)>();
@@ -140,9 +146,23 @@ public class TestChargeStateIdentifier
             
             foreach (var envelope in kvp.Value)
             {
-                var maxpair = envelope.Peaks.MaxBy(i => i.intensity); 
+                double mostAbundantMz =
+                    (ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex) + mass) / (double)envelope.Charge + Chemistry.Constants.ProtonMass;
+                // retrieve the intensity corresponding to the mostabundant isotopic mass
+                double[] arrayOfMzVals = envelope.Peaks
+                    .OrderBy(i => i.mz)
+                    .Select(i => i.mz)
+                    .ToArray(); 
+
+                int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals, mostAbundantMz); 
+
+                indexOfMostAbundant = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
+                indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count - 1 : indexOfMostAbundant;
+                // the OrderBy shouldn't be repeated, but I'm tired and about to go home. 
+                var maxPairs = envelope.Peaks.OrderBy(i=>i.mz).ToArray()[indexOfMostAbundant]; 
+
                 int charge = envelope.Charge;
-                outputList.Add((maxpair.mz, maxpair.intensity, charge, mass));
+                outputList.Add((maxPairs.mz, maxPairs.intensity, charge, mass));
             }
         }
         return outputList;
