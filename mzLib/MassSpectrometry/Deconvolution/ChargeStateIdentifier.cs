@@ -10,12 +10,15 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Accord.Statistics.Distributions.Univariate;
 using Easy.Common.Extensions;
 using Easy.Common.Interfaces;
 using MassSpectrometry.MzSpectra;
 using MathNet.Numerics;
 using MzLibUtil;
 using Constants = Chemistry.Constants;
+using Accord.Statistics.Testing;
+using MathNet.Numerics.Statistics;
 
 namespace MassSpectrometry;
 
@@ -144,15 +147,14 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 double lowerTol = chargeStateLadders[ladder].MzVals[j] - tolerance;
                 // get indices of the range of double values that contain the values in scan.Xarray 
                 int upperIndex = Array.BinarySearch(scan.XArray, upperTol);
-                int lowerIndex = Array.BinarySearch(scan.YArray, lowerTol);
+                int lowerIndex = Array.BinarySearch(scan.XArray, lowerTol);
 
                 upperIndex = upperIndex < 0 ? ~upperIndex : upperIndex;
                 lowerIndex = lowerIndex < 0 ? ~lowerIndex : lowerIndex;
 
                 upperIndex = upperIndex >= scan.XArray.Length ? scan.XArray.Length - 1 : upperIndex;
                 lowerIndex = lowerIndex == 0 ? 0 : lowerIndex;
-                // search over a subset of the Xarray. 
-
+                // search over a subset of the Xarray to speed up the attempted peak matching. 
                 for (int k = lowerIndex; k <= upperIndex; k++)
                 {
                     if (scan.XArray[k] >= lowerTol && scan.XArray[k] <= upperTol)
@@ -164,7 +166,9 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
             ladderDict.TryAdd(ladder, outputArray);
         });
-        ladderToIndicesMaps = ladderDict.OrderBy(i => i.Key).Select(i => i.Value).ToList(); 
+        ladderToIndicesMaps = ladderDict.OrderBy(i => i.Key)
+            .Select(i => i.Value)
+            .ToList(); 
     }
 
     public IEnumerable<ChargeStateLadderMatch> TransformToChargeStateLadderMatch(List<List<int>> ladderToIndicesMap, 
@@ -210,7 +214,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     // int indexOfMaxIntensityPeak,
     // double[] mzValueArray, int minCharge, int maxCharge, double minMzValAllowed, double maxMzValAllowed,
     // double adductMass = Constants.ProtonMass
-    public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrum, MzRange range)
+    public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum scan, MzRange range)
     {
         HashSet<double> seenMzValues = new();
         HashSet<double> forbiddenMasses = new(); 
@@ -219,15 +223,15 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         // peaks in order of intensity
 
         List<(int index, double mz, double intensity)> mzIntensityPairs =
-            (from i in Enumerable.Range(0, spectrum.XArray.Length)
-                select (i, spectrum.XArray[i], spectrum.YArray[i]))
+            (from i in Enumerable.Range(0, scan.XArray.Length)
+                select (i, scan.XArray[i], scan.YArray[i]))
             .OrderByDescending(i => i.Item3)
             .ToList();
 
         int countOfMzSeen = seenMzValues.Count;
         // go to next if it is found in seen 
         int indexer = 0;
-        while (indexer < spectrum.XArray.Length && iterations < 500)
+        while (indexer < scan.XArray.Length && iterations < 500)
         {
             
 
@@ -236,25 +240,25 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 || seenMzValues.Contains(mzIntensityPairs[indexer].mz))
             {
                 indexer++; 
-                if(indexer == spectrum.XArray.Length) break;
+                if(indexer == scan.XArray.Length) break;
                 
                 continue; 
             }
 
             var chargeStateLadders = CreateChargeStateLadders(
                 mzIntensityPairs[indexer].Item1, 
-                spectrum.XArray,
+                scan.XArray,
                 DeconvolutionParams.MinCharge,
-                DeconvolutionParams.MaxCharge, spectrum.XArray[0],
-                spectrum.XArray[^1]).ToList();
+                DeconvolutionParams.MaxCharge, scan.XArray[0],
+                scan.XArray[^1]).ToList();
             
-            MatchChargeStateLaddersFast(spectrum, chargeStateLadders.ToList(), 
+            MatchChargeStateLaddersFast(scan, chargeStateLadders.ToList(), 
                 DeconvolutionParams.PeakMatchPpmTolerance, out List<List<int>> ladderToIndicesMaps);
 
             var chargeStateLadderMatches = TransformToChargeStateLadderMatch(ladderToIndicesMaps, 
                 mzIntensityPairs.OrderBy(i => i.index)
                     .Select(i => (i.mz, i.intensity)).ToList(), chargeStateLadders).ToList();
-            ChargeStateLadderMatch? bestScoringChargeStateLadderMatch = ScoreChargeStateLadderMatches(chargeStateLadderMatches, spectrum, 
+            ChargeStateLadderMatch? bestScoringChargeStateLadderMatch = ScoreChargeStateLadderMatches(chargeStateLadderMatches, scan, 
                 forbiddenMasses);
 
             if (bestScoringChargeStateLadderMatch == null)
@@ -264,7 +268,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             }
             forbiddenMasses.Add(bestScoringChargeStateLadderMatch.TheoreticalLadder.Mass);
 
-            var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, spectrum).ToList();
+            var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, scan).ToList();
 
             foreach (var envelope in isotopicEnvelopesIntermediate)
             {
@@ -277,13 +281,19 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 yield return envelope;
             }
 
-            if (seenMzValues.Count - countOfMzSeen == 0 && indexer > 0) break;
+            //if (seenMzValues.Count - countOfMzSeen == 0 && indexer > 0) break;
             countOfMzSeen = seenMzValues.Count; 
             indexer++;
             iterations++;
         }
     }
-    // add a list of forbidden masses here and remove the forbidden mass
+
+    public void ScoreShapiroWilk()
+    {
+
+    }
+    
+    
     public ChargeStateLadderMatch? ScoreChargeStateLadderMatches(List<ChargeStateLadderMatch> ladderMatches, MzSpectrum scan, 
         HashSet<double> forbiddenMasses)
     {
@@ -295,7 +305,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         // check for harmonics
         double[] ladderMasses = orderByIntensity.Select(i => i.TheoreticalLadder.Mass).ToArray();
 
-        List<(int, int)> indicesList = new List<(int, int)>(); 
+        List<(int, int)> indicesList = new List<(int, int)>();
 
         for (int i = 0; i < ladderMasses.Length; i++)
         {
@@ -311,16 +321,19 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 }
                 // i will always be the larger value. 
                 double harmonic = ladderMasses[i] / ladderMasses[j];
-                if (Math.Abs(harmonic - 2) <= 0.05 || Math.Abs(harmonic-3) <= 0.05 || Math.Abs(harmonic - 4) <= 0.05)
+                for (int k = this.DeconvolutionParams.MinCharge; k <= this.DeconvolutionParams.MaxCharge; k++)
                 {
-                    indicesList.Add((i, j));
+                    if(Math.Abs(harmonic - k) <= 0.05)
+                    {
+                        indicesList.Add((i, j));
+                    }
                 }
             }
         }
 
         if (indicesList.Any())
         {
-            indicesList.Select(i => i.Item2)
+            indicesList.Select(i => i.Item1)
                 .Distinct()
                 .OrderByDescending(i => i)
                 .ForEach(i =>
@@ -330,7 +343,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             return orderByIntensity.OrderByDescending(i =>
             {
                 double score = ScoreByIntensityExplained(i, scan) * CompareTheoreticalNumberChargeStatesVsActual(i);
-                return score; 
+                return score;
             }).First(); 
         }
         else
@@ -345,10 +358,24 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         }
     }
 
+    public void EstimateNormalDistributionParameters(double[] yarray, out double mean, out double variance)
+    {
+        double oneOverN = 1d / yarray.Length;
+
+        double mu_intermediate = 0; 
+        for (int i = 0; i < yarray.Length; i++)
+        {
+            mu_intermediate += yarray[i]; 
+        }
+        mean = oneOverN * mu_intermediate;
+
+        double meanCopy = mean; 
+        variance = yarray.Sum(i => Math.Pow(i - meanCopy, 2)) / yarray.Length;
+    }
+
     public static double GetTheoreticalMostAbundantIsotopicPeak(int massIndex)
     {
         return mostIntenseMasses[massIndex];
-        
     }
 
     public static double GetDiffToMonoisotopic(int massIndex)
@@ -376,7 +403,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public double ScoreByIntensityExplained(ChargeStateLadderMatch match, MzSpectrum spectrum, double threshold = 0.01)
     {
-        return match.IntensitiesOfMatchingPeaks.Where(i => i >= threshold).Sum();
+        double medianSpectraValue = spectrum.YArray.Median(); 
+        return match.IntensitiesOfMatchingPeaks.Where(i => i - medianSpectraValue >= threshold * spectrum.YArray.Max()).Sum();
     }
 
     public IEnumerable<IsotopicEnvelope> FindIsotopicEnvelopes(ChargeStateLadderMatch match, MzSpectrum scan)
@@ -410,8 +438,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         for (int i = 0; i < match.ChargesOfMatchingPeaks.Count; i++)
         {
             yield return FindIsotopicEnvelope(massIndex, match.MatchingMzPeaks[i], match.IntensitiesOfMatchingPeaks[i],
-                match.TheoreticalLadder.Mass, (int)Math.Round(match.ChargesOfMatchingPeaks[i]), 5.0,
-                3.0, monoisotopicMassPrediction); 
+                match.TheoreticalLadder.Mass, (int)Math.Round(match.ChargesOfMatchingPeaks[i]), 
+                5.0, 3.0, monoisotopicMassPrediction); 
 
         }
 

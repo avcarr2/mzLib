@@ -135,6 +135,106 @@ public class TestChargeStateIdentifier
 
     }
 
+    [Test]
+    public void TestDeconvolutionBigThings()
+    {
+        
+        int minCharge = 5;
+        int maxCharge = 100; 
+        string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
+        var reader = MsDataFileReader.GetDataFile(path); 
+        reader.InitiateDynamicConnection();
+        var scan = reader.GetOneBasedScanFromDynamicConnection(1255, filteringParams).MassSpectrum;
+
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 15);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        var results = csi.Deconvolute(scan, scan.Range).ToList();
+        
+        results
+           // .CleanUpEnvelopes()
+            .OrderByDescending(i => i.Score)
+            //.DistinctBy(i => i.MonoisotopicMass)
+            .ForEach(i =>
+            {
+                if (i != null)
+                {
+                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+                }
+            });
+
+        // get the charge states of the isotopic envelopes
+        var dictChargeStateEnvelopes = GetEnvelopes(results.CleanUpEnvelopes())
+            // possible criteria for removing: 
+            // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
+            // peaks have less
+            .OrderByDescending(i => i.Value.Sum(j => j.Score))
+            .Take(30)
+            .ToDictionary(i => i.Key, i => i.Value);
+        // to plot: 
+    }
+
+    [Test]
+    public void VeryBigProteinDeconvolutionTest()
+    {
+        int minCharge = 50;
+        int maxCharge = 250;
+        string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
+        var reader = MsDataFileReader.GetDataFile(path);
+        reader.InitiateDynamicConnection();
+        var scan = reader.GetOneBasedScanFromDynamicConnection(1023, filteringParams).MassSpectrum;
+
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        var results = csi.Deconvolute(scan, scan.Range).ToList();
+
+        results
+            // .CleanUpEnvelopes()
+            .OrderByDescending(i => i.TotalIntensity)
+            //.DistinctBy(i => i.MonoisotopicMass)
+            .ForEach(i =>
+            {
+                if (i != null)
+                {
+                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+                }
+            });
+        // suppose that you have isolated a 
+
+    }
+
+    private MzSpectrum AddMzSpectraTogether(IEnumerable<MzSpectrum> spectra, double tolerancePpm)
+    {
+        Dictionary<double, double> spectraDict = new(); 
+        List<double> mzValues = new List<double>();
+        List<double> intensityValue = new List<double>();
+
+        foreach (var spectrum in spectra)
+        {
+            for (int i = 0; i < spectrum.XArray.Length; i++)
+            {
+                if (spectraDict.ContainsKey(spectrum.XArray[i]))
+                {
+                    spectraDict[spectrum.XArray[i]] += spectrum.YArray[i]; 
+                }
+                else
+                {
+                    spectraDict.Add(spectrum.XArray[i], spectrum.YArray[i]);
+                }
+            }
+        }
+
+
+
+        return new MzSpectrum(spectraDict.Select(i => i.Key)
+                .ToArray(),
+            spectraDict.Select(i => i.Value).ToArray(), true); 
+    }
+
+
     public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, List<IsotopicEnvelope>> dictEnvelope)
     {
         List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> outputList =
