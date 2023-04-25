@@ -287,20 +287,6 @@ public class TestChargeStateIdentifier
         }
         return resultsDict;
     }
-
-
-    [Test]
-    public void TestCreateChargeStateLadder()
-    {
-        double mass = 1000;
-        int charge = 1;
-        double adductMass = 1.0078; 
-
-        double exptlMass = (mass + charge * adductMass) / charge;
-        double exptlMass2 = mass / charge + adductMass;
-        Console.WriteLine(exptlMass + "; " + exptlMass2);
-        Console.WriteLine("{0}", (exptlMass - adductMass) * charge);
-    }
 }
 
 public static class ListIsotopicEnvelopeExtensions

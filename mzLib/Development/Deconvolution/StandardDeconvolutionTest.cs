@@ -49,6 +49,8 @@ namespace Development.Deconvolution
                 new ClassicDeconvolutionParameters(1, 60, 4, 3));
             Deconvoluter classicBottomUpDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
                 new ClassicDeconvolutionParameters(1, 12, 4, 3));
+            Deconvoluter deconvolveByChargeState = new Deconvoluter(DeconvolutionType.AustinConv,
+                new ChargeStateDeconvolutionParams(5, 100, 5)); 
 
             // Add Individual peak test cases
             List<SinglePeakDeconvolutionTestCase> singlePeakDeconvolutionTestCases = new()
