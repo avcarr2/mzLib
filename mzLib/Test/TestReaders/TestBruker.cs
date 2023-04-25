@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Shapes;
 using MassSpectrometry;
 using NUnit; 
 using NUnit.Framework;
@@ -31,32 +32,77 @@ namespace Test.TestReaders
         }
 
         [Test]
-        [TestCase(@"D:\BurkerFileSupport\WT_ESO_+_B_B5_01_4035.d")]
-        public void TestLoadAllStaticData(string path)
+        [TestCase(@"D:\BurkerFileSupport\SmallFiles\centroid_1x_MS1_4x_autoMS2.d")]
+        public void TestLoadAllStaticDataCentroid(string path)
         {
             MsDataFile brukerData = MsDataFileReader.GetDataFile(path).LoadAllStaticData();
-            Assert.That(brukerData.NumSpectra, Is.EqualTo(29767));
+            Assert.That(brukerData.NumSpectra, Is.EqualTo(5));
             Assert.That(brukerData.Scans[1].Polarity == Polarity.Positive);
             Assert.That(brukerData.Scans[1].DissociationType == DissociationType.CID);
-            Assert.That(brukerData.Scans[1].TotalIonCurrent == 4192d);
+            Assert.That(brukerData.Scans[1].TotalIonCurrent == 346d);
             Assert.That(brukerData.Scans[1].NativeId == "scan=2");
-            Assert.That(brukerData.Scans[1].SelectedIonMZ, Is.EqualTo(426.009674).Within(0.001));
+            Assert.That(brukerData.Scans[1].SelectedIonMZ, Is.EqualTo(721.86865).Within(0.001));
             Assert.That(brukerData.Scans[1].MsnOrder == 2);
-            // need to assert that the cumulative total of the y values equals the Total ion current. That would 
-            // be a good check for the y values being read correctly. 
-
+            Assert.That(brukerData.Scans[1].IsCentroid);
         }
 
         [Test]
-        public void TestGetSourceFile()
+        [TestCase(@"D:\BurkerFileSupport\SmallFiles\profile_1x_MS1_4x_autoMS2.d")]
+        public void TestLoadAllStaticDataProfile(string path)
         {
-
+            MsDataFile brukerData = MsDataFileReader.GetDataFile(path).LoadAllStaticData();
+            Assert.That(brukerData.NumSpectra, Is.EqualTo(5));
+            Assert.That(brukerData.Scans[1].Polarity == Polarity.Positive);
+            Assert.That(brukerData.Scans[1].DissociationType == DissociationType.CID);
+            Assert.That(!brukerData.Scans[1].IsCentroid);
+            Assert.That(brukerData.Scans[1].TotalIonCurrent == -1d);
+            Assert.That(brukerData.Scans[1].NativeId == "scan=2");
+            Assert.That(brukerData.Scans[1].SelectedIonMZ, Is.EqualTo(716.58715).Within(0.001));
+            Assert.That(brukerData.Scans[1].MsnOrder == 2);
         }
 
         [Test]
-        public void TestDynamicConnection()
+        [TestCase(@"D:\BurkerFileSupport\SmallFiles\profile_and_centroid_1x_MS1_4x_autoMS2.d")]
+        public void TestLoadAllStaticDataProfileAndCentroid(string path)
         {
+            MsDataFile brukerData = MsDataFileReader.GetDataFile(path).LoadAllStaticData();
+            Assert.That(brukerData.NumSpectra, Is.EqualTo(5));
+            Assert.That(brukerData.Scans[1].Polarity == Polarity.Positive);
+            Assert.That(brukerData.Scans[1].DissociationType == DissociationType.CID);
+            // If centroided and profile are both present, we default to centroid data. 
+            Assert.That(brukerData.Scans[1].IsCentroid);
+            Assert.That(brukerData.Scans[1].TotalIonCurrent == 210d);
+            Assert.That(brukerData.Scans[1].NativeId == "scan=2");
+            Assert.That(brukerData.Scans[1].SelectedIonMZ, Is.EqualTo(1280.748901).Within(0.001));
+            Assert.That(brukerData.Scans[1].MsnOrder == 2);
+        }
 
+        [Test]
+        [TestCase(@"D:\BurkerFileSupport\SmallFiles\centroid_1x_MS1_4x_autoMS2.d")]
+        public void TestGetSourceFile(string path)
+        {
+            var sourceFile = MsDataFileReader.GetDataFile(path).GetSourceFile();
+            Assert.That(path == sourceFile.Uri.OriginalString);
+            Assert.That(sourceFile.FileName == "analysis.baf");
+            Assert.That(sourceFile.MassSpectrometerFileFormat == "mzML format");
+            Assert.That(sourceFile.NativeIdFormat == "scan number only nativeID format");
+        }
+
+        [Test]
+        [TestCase(@"D:\BurkerFileSupport\SmallFiles\centroid_1x_MS1_4x_autoMS2.d")]
+        public void TestDynamicConnection(string path)
+        {
+            MsDataFile brukerReader = MsDataFileReader.GetDataFile(path);
+            brukerReader.InitiateDynamicConnection();
+            var scan = brukerReader.GetOneBasedScan(2);
+            
+            Assert.That(scan.Polarity == Polarity.Positive);
+            Assert.That(scan.DissociationType == DissociationType.CID);
+            Assert.That(scan.TotalIonCurrent == 346d);
+            Assert.That(scan.NativeId == "scan=2");
+            Assert.That(scan.SelectedIonMZ, Is.EqualTo(721.86865).Within(0.001));
+            Assert.That(scan.MsnOrder == 2);
+            Assert.That(scan.IsCentroid);
         }
 
         [Test]

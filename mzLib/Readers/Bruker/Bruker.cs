@@ -80,10 +80,13 @@ namespace Readers.Bruker
 		private const string nativeIdFormat = "scan number only nativeID format";
 		private const string massSpecFileFormat = "mzML format"; 
 		public override SourceFile GetSourceFile()
-		{
-			return new SourceFile(nativeIdFormat, massSpecFileFormat,
-				null, null, null);
-		}
+        {
+			// append the analysis.baf because the constructor for SourceFile will look for the 
+			// parent directory. 
+            string fileName = FilePath + @"\analysis.baf"; 
+            return new SourceFile(nativeIdFormat, massSpecFileFormat,
+				null, null, id: null, filePath: fileName);
+        }
 		public override MsDataScan GetOneBasedScanFromDynamicConnection(int oneBasedScanNumber, IFilteringParams? filterParams = null)
 		{
 			return GetMsDataScanDynamic(oneBasedScanNumber, filterParams); 
@@ -96,11 +99,11 @@ namespace Readers.Bruker
 
 		public override void InitiateDynamicConnection()
 		{
-            if (!File.Exists(FilePath))
+            if (!File.Exists(FilePath + @"\analysis.baf"))
             {
                 throw new FileNotFoundException();
             }
-            OpenFileConnection(FilePath);
+            OpenFileConnection(FilePath + @"\analysis.baf");
 		}
 
 		private const string GetFullSpectraTableString = "SELECT * FROM Spectra ORDER BY Rt";
@@ -208,12 +211,25 @@ namespace Readers.Bruker
                 .ToDictionary(i => i.Id, i => (i.MsLevel, i.Polarity)); 
 			
             // if the id fields are null, then it doesn't exist.
-			MzSpectrum spectrumData = GetSpectraData(spectraRow, filterParams);
+			int isCentroidIntSwitch = GetSpectraData(spectraRow, filterParams, out MzSpectrum spectrumData);
+            bool isCentroid = false; 
+            switch (isCentroidIntSwitch)
+            {
+				case -1:
+                    isCentroid = false;
+                    break;
+				case 0:
+                    isCentroid = false;
+                    break;
+				case 1:
+                    isCentroid = true;
+                    break;
+            }
+
 			int? oneBasedPrecursorScanNumber = spectraRow.Parent is null ? null : spectraRow.Parent;
 			// need the plus one because Bruker codes MS scans as 0, but we code them as 1. 
 			int msOrder = acquisitionKeyMsLevelLink[spectraRow.AcquisitionKey].MsLevel + 1;
-			//bool isCentroid = spectraRow.LineIndexId is not null;
-            bool isCentroid = false; 
+			
 			var polarity = acquisitionKeyMsLevelLink[spectraRow.AcquisitionKey].Polarity == 0 ? Polarity.Positive : Polarity.Negative;
 			double? selectedIonMz = null;
 
@@ -255,15 +271,16 @@ namespace Readers.Bruker
             {255, DissociationType.Unknown}
         }; 
 
-		private MzSpectrum GetSpectraData(SpectraTableRow spectraInfo, IFilteringParams? filteringParams)
+		private int GetSpectraData(SpectraTableRow spectraInfo, IFilteringParams? filteringParams, out MzSpectrum spectrum)
 		{
 			// get centroided data if available. Otherwise, default to profile.
 			// if neither exists, return a spectra consisting of two zeroes. This probably shouldn't 
 			// happen, but can't rule it out. 
 			if (spectraInfo.LineMzId == null && spectraInfo.ProfileMzId == null)
 			{
-				return new MzSpectrum(new double[,] {{0}, {0}}); 
-			}
+				spectrum = new MzSpectrum(new double[,] {{0}, {0}});
+                return -1; 
+            }
 			if (spectraInfo.LineMzId == null && spectraInfo.ProfileMzId != null)
 			{
 				double[] profileMzs = GetBafDoubleArray(_handle!.Value, (ulong)spectraInfo.ProfileMzId);
@@ -277,8 +294,9 @@ namespace Readers.Bruker
 						profileMzs[0], profileMzs[^0]);
 				}
 
-				return new MzSpectrum(profileMzs, profileInts, true); 
-			}
+				spectrum = new MzSpectrum(profileMzs, profileInts, true);
+                return 0; 
+            }
 
 			double[] lineMzs = GetBafDoubleArray(_handle!.Value, (ulong)spectraInfo.LineMzId!);
 			double[] lineInt = GetBafDoubleArray(_handle!.Value, (ulong)spectraInfo.LineIntensityId!);
@@ -290,8 +308,9 @@ namespace Readers.Bruker
 					ref lineMzs, filteringParams,
 					lineMzs[0], lineMzs[^0]);
 			}
-			return new MzSpectrum(lineMzs, lineInt, true); 
-		}
+			spectrum = new MzSpectrum(lineMzs, lineInt, true);
+            return 1;
+        }
 
 		private const string GetAcqKeyTableString = @"SELECT * FROM AcquisitionKeys";
 		private const int AcqKeyTableColumns = 5; 
