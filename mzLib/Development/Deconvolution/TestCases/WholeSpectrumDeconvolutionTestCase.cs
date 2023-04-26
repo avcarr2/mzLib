@@ -73,7 +73,7 @@ namespace Development.Deconvolution
         /// <summary>
         /// Tolerance which deconvolution results must match expected value
         /// </summary>
-        public PpmTolerance DeconvolutionPPmTolerance { get; init; }
+        public PpmTolerance DeconvolutionPPmTolerance { get; set; }
 
         /// <summary>
         /// Number of deconvoluted masses that are to be assessed

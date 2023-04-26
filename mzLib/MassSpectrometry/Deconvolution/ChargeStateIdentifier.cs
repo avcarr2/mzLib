@@ -233,12 +233,13 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         {
             
             // check if peak has been found in seen and is above minimum threshold of intensity
-            if (mzIntensityPairs[indexer].intensity / mzIntensityPairs.Max(i => i.intensity) < 0.05 
-                || seenMzValues.Contains(mzIntensityPairs[indexer].mz))
+            if (mzIntensityPairs[indexer].intensity / mzIntensityPairs.Max(i => i.intensity) < 0.05
+                || seenMzValues.Contains(mzIntensityPairs[indexer].mz)
+                )
             {
                 indexer++; 
                 if(indexer == scan.XArray.Length) break;
-                
+
                 continue; 
             }
 
@@ -266,19 +267,36 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             forbiddenMasses.Add(bestScoringChargeStateLadderMatch.TheoreticalLadder.Mass);
 
             var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, scan).ToList();
+            double? maxScore = double.MinValue; 
+            if (isotopicEnvelopesIntermediate.All(i => i != null))
+            {
+                maxScore = isotopicEnvelopesIntermediate.Where(i => i != null)
+                    .MaxBy(i => i.Score).Score;
+            }
 
             foreach (var envelope in isotopicEnvelopesIntermediate)
             {
                 if (envelope == null) continue;
                 if (envelope.Peaks.Count < DeconvolutionParams.MinCharge - 1) continue;
-                foreach (var mz in envelope.Peaks.Select(i => i.mz))
+                if (envelope.Score == maxScore)
                 {
-                    seenMzValues.Add(mz);
+                    seenMzValues.AddRange(envelope.Peaks.Select(i => i.mz)); 
                 }
-                if (envelope.Peaks.Any(i => i.mz >= range.Maximum) 
-                   &&  envelope.Peaks.Any(i => i.mz >= range.Minimum))
+                //foreach (var mz in envelope.Peaks.Select(i => i.mz))
+                //{
+                //    seenMzValues.Add(mz);
+                //}
+                if (range == null)
                 {
-                    yield return envelope;
+                    yield return envelope; 
+                }
+                else
+                {
+                    if (envelope.Peaks.Any(i => i.mz <= range.Maximum)
+                        && envelope.Peaks.Any(i => i.mz >= range.Minimum))
+                    {
+                        yield return envelope;
+                    }
                 }
             }
             indexer++;

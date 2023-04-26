@@ -78,7 +78,7 @@ namespace Development.Deconvolution
         /// <summary>
         /// Tolerance which deconvolution results must match expected value
         /// </summary>
-        public PpmTolerance DeconvolutionPPmTolerance { get; init; }
+        public PpmTolerance DeconvolutionPPmTolerance { get; set; }
 
         public override string ToString()
         {

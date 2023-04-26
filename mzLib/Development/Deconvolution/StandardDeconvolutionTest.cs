@@ -1,5 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using Chemistry;
+using Easy.Common.Extensions;
 using MassSpectrometry;
+using MzLibUtil;
 using NUnit.Framework;
 using UsefulProteomicsDatabases;
 
@@ -20,13 +23,14 @@ namespace Development.Deconvolution
         /// <summary>
         /// All Test Cases where a single peak is deconvoluted
         /// </summary>
-        private static IEnumerable<SinglePeakDeconvolutionTestCase> _singlePeakTestCases;
+        private static List<SinglePeakDeconvolutionTestCase> _singlePeakTestCases;
 
         /// <summary>
         /// All Test Cases where an entire spectrum is deconvoluted
         /// </summary>
         private static IEnumerable<WholeSpectrumDeconvolutionTestCase> _wholeSpectrumDeconvolutionTestCases;
 
+        private const string cytochromeCSeq = ""; 
         #region Set Up Test Cases
 
         /// <summary>
@@ -46,18 +50,21 @@ namespace Development.Deconvolution
 
             // set up deconvoluters to be utilized by test cases
             Deconvoluter classicTopDownDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
-                new ClassicDeconvolutionParameters(1, 60, 4, 3));
+                new ClassicDeconvolutionParameters(5, 60, 4, 3));
             Deconvoluter classicBottomUpDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
-                new ClassicDeconvolutionParameters(1, 12, 4, 3));
+                new ClassicDeconvolutionParameters(5, 12, 4, 3));
             Deconvoluter deconvolveByChargeState = new Deconvoluter(DeconvolutionType.AustinConv,
-                new ChargeStateDeconvolutionParams(5, 100, 5)); 
+                new ChargeStateDeconvolutionParams(5, 50, 5)); 
 
             // Add Individual peak test cases
+            
+
+
             List<SinglePeakDeconvolutionTestCase> singlePeakDeconvolutionTestCases = new()
             {
                 // uniquitin, direct injection
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection PolyUbiquitin, Averaged",
-                    ubiquitinPath, 1, 10038.4, 8, 1254.8, 20),
+                    ubiquitinPath, 1, 10039.4, 8, 1255.050, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection PolyUbiquitin, Averaged",
                     ubiquitinPath, 1, 10039.41, 9, 1115.49, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection PolyUbiquitin, Averaged",
@@ -93,7 +100,7 @@ namespace Development.Deconvolution
                     hghPath, 1, 22139.25, 15, 1475.95, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injectio Human Growth Hormone, Averaged",
-                    hghPath, 1, 22140.32, 16, 1383.77, 20),
+                    hghPath, 1, 22140.32, 16, 1383.769, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
                     hghPath, 1, 22141.31, 17, 1302.43, 20),
@@ -106,29 +113,35 @@ namespace Development.Deconvolution
 
                 // cytochrome c, direct injection 
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12367.44, 9, 1374.16, 20),
+                    cytoPath, 1, 12352.32786, 9, 1374.16, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12367.4, 10, 1236.74, 20),
+                    cytoPath, 1, 12352.32786, 10, 1236.74, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12368.4, 11, 1124.40, 20),
+                    cytoPath, 1, 12352.32786, 11, 1124.40, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12370.44, 12, 1030.87, 20),
+                    cytoPath, 1, 12352.32786, 12, 1030.87, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12371.45, 13, 951.65, 20),
+                    cytoPath, 1, 12352.32786, 13, 951.65, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12373.48, 14, 883.82, 20),
+                    cytoPath, 1, 12352.32786, 14, 883.82, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12373.5, 15, 824.90, 20),
+                    cytoPath, 1, 12352.32786, 15, 824.90, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12374.56, 16, 773.41, 20),
+                    cytoPath, 1, 12352.32786, 16, 773.41, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12374.47, 17, 727.91, 20),
+                    cytoPath, 1, 12352.32786, 17, 727.91, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12376.44, 18, 687.58, 20),
+                    cytoPath, 1, 12352.32786, 18, 687.58, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
-                    cytoPath, 1, 12360.6, 20, 619.03, 20)
+                    cytoPath, 1, 12352.32786, 20, 619.03, 20)
             };
-            _singlePeakTestCases = singlePeakDeconvolutionTestCases;
+
+            _singlePeakTestCases = singlePeakDeconvolutionTestCases.Select(i =>
+            {
+                i.Deconvoluter = deconvolveByChargeState;
+                i.DeconvolutionPPmTolerance = new PpmTolerance(10);
+                return i;
+            }).ToList(); 
 
             // Add whole spectrum test cases
             List<WholeSpectrumDeconvolutionTestCase> wholeSpectrumDeconvolutionTestCases = new()
@@ -151,6 +164,17 @@ namespace Development.Deconvolution
                     new []{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20},
                     new []{1374.16, 1236.74, 1124.40, 1030.87, 951.65, 883.82, 824.90, 773.41, 727.91, 687.58, 619.03}),
             };
+
+            foreach (var newDeconvoluter in wholeSpectrumDeconvolutionTestCases.Select(i =>
+                     {
+                         i.Deconvoluter = deconvolveByChargeState;
+                         i.DeconvolutionPPmTolerance = new PpmTolerance(10); 
+                         return i;
+                     }).ToList())
+            {
+                wholeSpectrumDeconvolutionTestCases.Add(newDeconvoluter);
+            }
+
             _wholeSpectrumDeconvolutionTestCases = wholeSpectrumDeconvolutionTestCases;
         }
 
@@ -202,7 +226,7 @@ namespace Development.Deconvolution
 
             // extract tested properties from IsotopicEnvelopeResults
             var resultChargeStates = allResults.Select(p => p.Charge);
-            var resultMostAbundantObservedIsotopicMass = allResults.Select(p => p.MostAbundantObservedIsotopicMass);
+            var resultMostAbundantObservedIsotopicMass = allResults.Select(p => p.MonoisotopicMass);
             var resultSelectedIonMz = allResults.Select(p => p.MostAbundantObservedIsotopicMass / p.Charge);
 
             // test deconvolution results
