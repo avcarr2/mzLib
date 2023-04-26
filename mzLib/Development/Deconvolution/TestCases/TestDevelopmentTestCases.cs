@@ -36,7 +36,7 @@ namespace Development.Deconvolution
 
             Assert.IsNotNull(testCase);
             Assert.That(testCase.SampleInformation, Is.EqualTo(sampleInformation));
-            Assert.That(testCase.ExpectedMostAbundantObservedIsotopicMass, Is.EqualTo(expectedMostAbundantObservedIsotopicMass));
+            Assert.That(testCase.ExpectedMonoisotopicMass, Is.EqualTo(expectedMostAbundantObservedIsotopicMass));
             Assert.That(testCase.ExpectedIonChargeState, Is.EqualTo(expectedIonChargeState));
             Assert.That(testCase.SelectedIonMz, Is.EqualTo(selectedIonMz));
             Assert.That(testCase.RangeToDeconvolute.Width, Is.EqualTo(range.Width));

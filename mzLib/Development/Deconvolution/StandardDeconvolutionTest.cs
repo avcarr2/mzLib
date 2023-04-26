@@ -85,31 +85,31 @@ namespace Development.Deconvolution
                 // hgh, direct injection
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22139.41, 11, 2012.29, 20),
+                    hghPath, 1, 22111.0275, 11, 2012.29, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22136.28, 12, 1844.69, 20),
+                    hghPath, 1, 22111.0275, 12, 1844.771, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22137.31, 13, 1702.87, 20),
+                    hghPath, 1, 22111.0275, 13, 1702.87, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22139.32, 14, 1581.38, 20),
+                    hghPath, 1, 22111.0275, 14, 1581.38, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22139.25, 15, 1475.95, 20),
+                    hghPath, 1, 22111.0275, 15, 1475.95, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injectio Human Growth Hormone, Averaged",
-                    hghPath, 1, 22140.32, 16, 1383.769, 20),
+                    hghPath, 1, 22111.0275, 16, 1383.769, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22141.31, 17, 1302.43, 20),
+                    hghPath, 1, 22111.0275, 17, 1302.43, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22142.34, 18, 1230.13, 20),
+                    hghPath, 1, 22111.0275, 18, 1230.13, 20),
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter,
                     "Direct Injection Human Growth Hormone, Averaged",
-                    hghPath, 1, 22143.36, 19, 1165.44, 20),
+                    hghPath, 1, 22111.0275, 19, 1165.44, 20),
 
                 // cytochrome c, direct injection 
                 new SinglePeakDeconvolutionTestCase(classicTopDownDeconvoluter, "Direct Injection Cytochrome C, Averaged",
@@ -199,10 +199,10 @@ namespace Development.Deconvolution
             Assert.That(topScoringResult.Charge, Is.EqualTo(testCase.ExpectedIonChargeState));
 
             var acceptableDistanceFromTheoreticalWithinTestCaseTolerance = 
-                testCase.DeconvolutionPPmTolerance.GetMaximumValue(testCase.ExpectedMostAbundantObservedIsotopicMass) -
-                testCase.ExpectedMostAbundantObservedIsotopicMass;
+                testCase.DeconvolutionPPmTolerance.GetMaximumValue(testCase.ExpectedMonoisotopicMass) -
+                testCase.ExpectedMonoisotopicMass;
             Assert.That(topScoringResult.MostAbundantObservedIsotopicMass,
-                Is.EqualTo(testCase.ExpectedMostAbundantObservedIsotopicMass)
+                Is.EqualTo(testCase.ExpectedMonoisotopicMass)
                     .Within(acceptableDistanceFromTheoreticalWithinTestCaseTolerance));
 
             acceptableDistanceFromTheoreticalWithinTestCaseTolerance =
@@ -233,10 +233,10 @@ namespace Development.Deconvolution
             Assert.That(resultChargeStates, Has.Some.EqualTo(testCase.ExpectedIonChargeState));
 
             var acceptableDistanceFromTheoreticalWithinTestCaseTolerance =
-                testCase.DeconvolutionPPmTolerance.GetMaximumValue(testCase.ExpectedMostAbundantObservedIsotopicMass) -
-                testCase.ExpectedMostAbundantObservedIsotopicMass;
+                testCase.DeconvolutionPPmTolerance.GetMaximumValue(testCase.ExpectedMonoisotopicMass) -
+                testCase.ExpectedMonoisotopicMass;
             Assert.That(resultMostAbundantObservedIsotopicMass,
-                Has.Some.EqualTo(testCase.ExpectedMostAbundantObservedIsotopicMass)
+                Has.Some.EqualTo(testCase.ExpectedMonoisotopicMass)
                     .Within(acceptableDistanceFromTheoreticalWithinTestCaseTolerance));
 
             acceptableDistanceFromTheoreticalWithinTestCaseTolerance =

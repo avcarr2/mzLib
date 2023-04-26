@@ -16,16 +16,16 @@ namespace Development.Deconvolution
         /// <param name="sampleInformation">Quick information relevant to the sample, will be visible on test failing. Use this field to allow other to quickly identify which tests are failing</param>
         /// <param name="spectrumPath">path to the spectrum of interest, current implementation expects the file to </param>
         /// <param name="scanNumber">One based scan number of spectrum to deconvolute</param>
-        /// <param name="expectedMostAbundantObservedIsotopicMass">Expected mass from deconvolution result</param>
+        /// <param name="expectedMonoisotopicMass">Expected mass from deconvolution result</param>
         /// <param name="expectedIonChargeState">Expected charge state from deconvolution result</param>
         /// <param name="selectedIonMz">M/z of peak to deconvolute from spectrum</param>
         /// <param name="precursorPpmMassTolerance">Tolerance which deconvolution results must match expected value</param>
         public SinglePeakDeconvolutionTestCase(Deconvoluter deconvoluter, string sampleInformation, string spectrumPath, int scanNumber,
-            double expectedMostAbundantObservedIsotopicMass, int expectedIonChargeState, double selectedIonMz, double precursorPpmMassTolerance)
+            double expectedMonoisotopicMass, int expectedIonChargeState, double selectedIonMz, double precursorPpmMassTolerance)
         {
             Deconvoluter = deconvoluter;
             SampleInformation = sampleInformation;
-            ExpectedMostAbundantObservedIsotopicMass = expectedMostAbundantObservedIsotopicMass;
+            ExpectedMonoisotopicMass = expectedMonoisotopicMass;
             ExpectedIonChargeState = expectedIonChargeState;
             SelectedIonMz = selectedIonMz;
             DeconvolutionPPmTolerance = new PpmTolerance(precursorPpmMassTolerance);
@@ -52,7 +52,7 @@ namespace Development.Deconvolution
         /// <summary>
         /// Expected mass from deconvolution result
         /// </summary>
-        public double ExpectedMostAbundantObservedIsotopicMass { get; init; }
+        public double ExpectedMonoisotopicMass { get; init; }
 
         /// <summary>
         /// Expected charge state from deconvolution result
