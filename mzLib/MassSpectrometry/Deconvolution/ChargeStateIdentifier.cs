@@ -226,15 +226,21 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 select (i, scan.XArray[i], scan.YArray[i]))
             .OrderByDescending(i => i.Item3)
             .ToList();
+        List<(int Index, double mz, double intensity)> filteredPairs =
+            (from i in Enumerable.Range(0, scan.XArray.Length)
+             where scan.XArray[i] >= range.Minimum && scan.XArray[i] <= range.Maximum
+             select (i, scan.XArray[i], scan.YArray[i]))
+            .OrderByDescending(i => i.Item3)
+            .ToList(); 
 
-        // go to next if it is found in seen 
-        int indexer = 0;
-        while (indexer < scan.XArray.Length && iterations < 500)
+     // go to next if it is found in seen 
+     int indexer = 0;
+        while (indexer < filteredPairs.Count && iterations < 500)
         {
             
             // check if peak has been found in seen and is above minimum threshold of intensity
-            if (mzIntensityPairs[indexer].intensity / mzIntensityPairs.Max(i => i.intensity) < 0.05
-                || seenMzValues.Contains(mzIntensityPairs[indexer].mz)
+            if (filteredPairs[indexer].intensity / filteredPairs.Max(i => i.intensity) < 0.05
+                || seenMzValues.Contains(filteredPairs[indexer].mz)
                 )
             {
                 indexer++; 
@@ -242,9 +248,9 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
                 continue; 
             }
-
+            
             var chargeStateLadders = CreateChargeStateLadders(
-                mzIntensityPairs[indexer].Item1, 
+                filteredPairs[indexer].Item1, 
                 scan.XArray,
                 DeconvolutionParams.MinCharge,
                 DeconvolutionParams.MaxCharge, scan.XArray[0],
@@ -280,7 +286,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 if (envelope.Peaks.Count < DeconvolutionParams.MinCharge - 1) continue;
                 if (envelope.Score == maxScore)
                 {
-                    seenMzValues.AddRange(envelope.Peaks.Select(i => i.mz)); 
+                    //seenMzValues.AddRange(envelope.Peaks.Select(i => i.mz)); 
                 }
                 //foreach (var mz in envelope.Peaks.Select(i => i.mz))
                 //{
