@@ -7,7 +7,7 @@ namespace MassSpectrometry
 {
     public class IsotopicEnvelope
     {
-        public readonly List<(double mz, double intensity)> Peaks;
+        public List<(double mz, double intensity)> Peaks { get; private set; }
         public double MonoisotopicMass { get; private set; }
 
         /// <summary>
@@ -59,6 +59,16 @@ namespace MassSpectrometry
         public void SetMedianMonoisotopicMass(List<double> monoisotopicMassPredictions)
         {
             MonoisotopicMass = monoisotopicMassPredictions.Median();
+        }
+
+        public void SetMonoisotopicMass(double monoisotopicMass)
+        {
+            MonoisotopicMass = monoisotopicMass; 
+        }
+
+        public void ReplacePeaksList(List<(double,double)> peaksList)
+        {
+            Peaks = peaksList;
         }
 
     }

@@ -9,6 +9,8 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Accord.Statistics.Distributions.Univariate;
 using Easy.Common.Extensions;
@@ -238,18 +240,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
      int indexer = 0;
         while (indexer < filteredPairs.Count && iterations < 500)
         {
-            
-            // check if peak has been found in seen and is above minimum threshold of intensity
-            //if (filteredPairs[indexer].intensity / filteredPairs.Max(i => i.intensity) < 0.05
-            //    || seenMzValues.Contains(filteredPairs[indexer].mz)
-            //    )
-            //{
-            //    indexer++; 
-            //    if(indexer == scan.XArray.Length) break;
-
-            //    continue; 
-            //}
-            
             var chargeStateLadders = CreateChargeStateLadders(
                 filteredPairs[indexer].Item1, 
                 scan.XArray,
@@ -268,8 +258,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
             var bestScoringChargeStateLadderMatch = matchList
                 .Where(i => i.EnvelopeScore > 0)
-                .Where(i => i.SequentialChargeStateScore > -2d)
-                .MaxBy(i => i.Score); 
+                .Where(i => i.SequentialChargeStateScore > -1.9)
+                .MinBy(i => Math.Abs(i.MeanError)); 
 
             if (bestScoringChargeStateLadderMatch == null)
             {
@@ -277,7 +267,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 indexer++; 
                 continue; 
             }
-            forbiddenMassIndex.Add(bestScoringChargeStateLadderMatch.MassIndex);
+            //forbiddenMassIndex.Add(bestScoringChargeStateLadderMatch.MassIndex);
 
             var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, scan).ToList();
 
@@ -285,25 +275,69 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             {
                 if (envelope == null) continue;
                 if (envelope.Peaks.Count < 2) continue;
-
-                //seenMzValues.AddRange(envelope.Peaks.Select(i => i.mz)); 
-
-                //foreach (var mz in envelope.Peaks.Select(i => i.mz))
-                //{
-                //    seenMzValues.Add(mz);
-                //}
+                
                 if (range == null)
                 {
                     yield return envelope; 
                 }
                 else
                 {
-                    yield return envelope;
+                    if (envelope.Peaks.Any(i => i.mz >= range.Minimum && i.mz <= range.Maximum))
+                    {
+                        yield return envelope;
+                    }
                 }
             }
             indexer++;
             iterations++;
         }
+    }
+
+    public static IEnumerable<IsotopicEnvelope> CleanUpIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
+    {
+        var orderedEnvelopes = envelopes.OrderBy(i => i.MonoisotopicMass);
+        foreach (var range in Enumerable.Range(0, orderedEnvelopes.Count() - 1))
+        {
+            if (range == 0)
+            {
+                yield return orderedEnvelopes.ElementAt(range);
+                continue; 
+            } 
+
+            if ((orderedEnvelopes.ElementAt(range+1).MonoisotopicMass - orderedEnvelopes.ElementAt(range).MonoisotopicMass) 
+                <= Constants.C13MinusC12 + ppmTolerance / 1E6 * Constants.C13MinusC12)
+            {
+                orderedEnvelopes.ElementAt(range + 1)
+                    .SetMonoisotopicMass(orderedEnvelopes.ElementAt(range).MonoisotopicMass); 
+                yield return orderedEnvelopes.ElementAt(range);
+                yield return orderedEnvelopes.ElementAt(range + 1); 
+            }
+
+             
+        }
+    }
+
+    //public static IEnumerable<IsotopicEnvelope> CombineIsotopologuePeaks(IEnumerable<IsotopicEnvelope> envelope)
+    //{
+    //    envelope.
+    //}
+
+    public static List<int> FindIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
+    {
+        var orderedByMonoMass = envelopes.OrderBy(i => i.MonoisotopicMass).ToList();
+
+        var indexList = new List<int>(); 
+        for(int i = 0; i < orderedByMonoMass.Count - 1; i++)
+        {
+            if (Math.Abs(orderedByMonoMass[i + 1].MonoisotopicMass
+                         - orderedByMonoMass[i].MonoisotopicMass) 
+                <= Constants.C13MinusC12 + ppmTolerance/1E6*Constants.C13MinusC12)
+            {
+                indexList.Add(i);
+            }
+        }
+
+        return indexList;
     }
 
     public void ScoreShapiroWilk()
@@ -485,7 +519,16 @@ public class ChargeStateLadderMatch
     {
         if (!(PercentageMzValsMatched < 0.25))
         {
-            SequentialChargeStateScore = ChargesOfMatchingPeaks.Zip(ChargesOfMatchingPeaks.Skip(1), (x, y) => y - x).Average();
+            var chargesList = ChargesOfMatchingPeaks
+                .Zip(ChargesOfMatchingPeaks.Skip(1), (x, y) => y - x)
+                .Where(i => Math.Abs(i) > 0.1);
+            if (chargesList.Any())
+            {
+                SequentialChargeStateScore = chargesList.Average();
+                return; 
+            }
+
+            SequentialChargeStateScore = -10000;
             return; 
         }
         SequentialChargeStateScore = -10000;
