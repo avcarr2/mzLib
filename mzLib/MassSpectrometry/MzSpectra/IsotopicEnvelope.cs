@@ -1,6 +1,7 @@
 ﻿using MathNet.Numerics.Statistics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.Linq;
 
 namespace MassSpectrometry
@@ -34,6 +35,10 @@ namespace MassSpectrometry
             Score = ScoreIsotopeEnvelope();
         }
 
+        public void Rescore(double newScore)
+        {
+            Score = newScore;
+        }
         public double GetMostAbundantObservedIsotopicMass(List<(double mz, double intensity)> peaks, int charge)
         {
             return peaks.MaxBy(p => p.intensity).mz * charge;
