@@ -218,10 +218,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     // double[] mzValueArray, int minCharge, int maxCharge, double minMzValAllowed, double maxMzValAllowed,
     // double adductMass = Constants.ProtonMass
     
-    public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum scan, MzRange range)
+    private IEnumerable<IsotopicEnvelope> DeconvoluteInternal(MzSpectrum scan, MzRange range)
     {
-        HashSet<double> seenMzValues = new();
-        HashSet<int> forbiddenMassIndex = new(); 
         int iterations = 0;
 
         List<(int index, double mz, double intensity)> mzIntensityPairs =
@@ -237,7 +235,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             .ToList(); 
 
      // go to next if it is found in seen 
-     int indexer = 0;
+        int indexer = 0;
         while (indexer < filteredPairs.Count && iterations < 500)
         {
             var chargeStateLadders = CreateChargeStateLadders(
@@ -253,12 +251,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             var chargeStateLadderMatches = TransformToChargeStateLadderMatch(ladderToIndicesMaps, 
                 mzIntensityPairs.OrderBy(i => i.index)
                     .Select(i => (i.mz, i.intensity)).ToList(), chargeStateLadders).ToList();
-            List<ChargeStateLadderMatch?> matchList = ScoreChargeStateLadderMatches(chargeStateLadderMatches, scan, 
-                forbiddenMassIndex).ToList();
+            List<ChargeStateLadderMatch?> matchList = ScoreChargeStateLadderMatches(chargeStateLadderMatches, scan).ToList();
 
             var bestScoringChargeStateLadderMatch = matchList
-                .Where(i => i.EnvelopeScore > 0)
+                .Where(i => i.EnvelopeScore > 0.1)
                 .Where(i => i.SequentialChargeStateScore > -1.9)
+                .Where(i => i.PercentageMzValsMatched > 0.2)
                 .MinBy(i => Math.Abs(i.MeanError)); 
 
             if (bestScoringChargeStateLadderMatch == null)
@@ -269,7 +267,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             }
             //forbiddenMassIndex.Add(bestScoringChargeStateLadderMatch.MassIndex);
 
-            var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, scan).ToList();
+            var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, scan);
 
             foreach (var envelope in isotopicEnvelopesIntermediate)
             {
@@ -293,7 +291,31 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         }
     }
 
-    public static IEnumerable<IsotopicEnvelope> CleanUpIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
+    public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
+    {
+        return DeconvoluteInternal(spectrumToDeconvolute, range).OrderByDescending(i => i.Score);
+
+        //return CleanUpIsotopologues(isotopicEnvelopeList, 5)
+        //    .Where(i => i.Peaks.Count > 2);
+        //return MergeIsotopicEnvelopes(cleanedList); 
+    }
+
+    private IEnumerable<IsotopicEnvelope> MergeIsotopicEnvelopes(IEnumerable<IsotopicEnvelope> envelopes)
+    {
+        var distinctMonoisotopicMasses = envelopes.Select(i => i.MonoisotopicMass).Distinct().ToArray();
+        var uniqueIsotopologues = envelopes.DistinctBy(i => i.MonoisotopicMass).ToList();
+        for (int i = 0; i < distinctMonoisotopicMasses.Length; i++)
+        {
+            uniqueIsotopologues[i].ReplacePeaksList(envelopes
+                .Where(k => k.MonoisotopicMass == distinctMonoisotopicMasses[i])
+                .SelectMany(k => k.Peaks)
+                .Distinct()
+                .ToList());
+        }
+        return uniqueIsotopologues;
+    }
+
+    public IEnumerable<IsotopicEnvelope> CleanUpIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
     {
         var orderedEnvelopes = envelopes.OrderBy(i => i.MonoisotopicMass);
         foreach (var range in Enumerable.Range(0, orderedEnvelopes.Count() - 1))
@@ -316,13 +338,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
              
         }
     }
-
-    //public static IEnumerable<IsotopicEnvelope> CombineIsotopologuePeaks(IEnumerable<IsotopicEnvelope> envelope)
-    //{
-    //    envelope.
-    //}
-
-    public static List<int> FindIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
+    public List<int> FindIsotopologues(IEnumerable<IsotopicEnvelope> envelopes, double ppmTolerance)
     {
         var orderedByMonoMass = envelopes.OrderBy(i => i.MonoisotopicMass).ToList();
 
@@ -340,14 +356,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         return indexList;
     }
 
-    public void ScoreShapiroWilk()
-    {
-
-    }
-    
-    
-    public IEnumerable<ChargeStateLadderMatch?> ScoreChargeStateLadderMatches(List<ChargeStateLadderMatch> ladderMatches, MzSpectrum scan, 
-        HashSet<int> forbiddenMasses)
+    public IEnumerable<ChargeStateLadderMatch?> ScoreChargeStateLadderMatches(List<ChargeStateLadderMatch> ladderMatches, MzSpectrum scan)
     {
 
         var orderByIntensity = ladderMatches
@@ -415,8 +424,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public double ScoreByIntensityExplained(ChargeStateLadderMatch match, MzSpectrum spectrum, double threshold = 0.01)
     {
-        double medianSpectraValue = spectrum.YArray.Median(); 
-        return match.IntensitiesOfMatchingPeaks.Where(i => i - medianSpectraValue >= threshold * spectrum.YArray.Max()).Sum();
+        double spectrumThresholdVal = spectrum.YArray.Max() * threshold;
+        return match.IntensitiesOfMatchingPeaks.Where(i => i >= spectrumThresholdVal).Sum();
     }
 
     private void GetMassIndex(ChargeStateLadderMatch match, MzSpectrum scan)
@@ -513,8 +522,18 @@ public class ChargeStateLadderMatch
     public List<double> MonoGuesses { get; set; }
     public List<double> MonoErrors { get; set; }
     public double PercentageMzValsMatched { get; set; }
-    public double MeanError => MonoErrors.Mean(); 
+    public double MeanError => CalculateMonoErrorMean();
 
+    private double CalculateMonoErrorMean()
+    {
+        double sum = 0; 
+        for (int i = 0; i < MonoGuesses.Count; i++)
+        {
+            sum += MonoErrors[i]; 
+        }
+
+        return sum / MonoisotopicMass / MonoErrors.Count * 1E6; 
+    }
     public void CalculateChargeStateScore()
     {
         if (!(PercentageMzValsMatched < 0.25))

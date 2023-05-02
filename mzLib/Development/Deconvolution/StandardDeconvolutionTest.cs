@@ -141,7 +141,7 @@ namespace Development.Deconvolution
                 i.Deconvoluter = deconvolveByChargeState;
                 i.DeconvolutionPPmTolerance = new PpmTolerance(10);
                 return i;
-            }).ToList(); 
+            }).ToList();
 
             // Add whole spectrum test cases
             List<WholeSpectrumDeconvolutionTestCase> wholeSpectrumDeconvolutionTestCases = new()
@@ -193,24 +193,8 @@ namespace Development.Deconvolution
                 .Deconvolute(testCase.SpectrumToDeconvolute, testCase.RangeToDeconvolute)
                 .OrderBy(i => i.MonoisotopicMass)
                 .ToList();
-
-            var isotopologues = ChargeStateIdentifier
-                .CleanUpIsotopologues(allResults, 5);
-
-            var distinctMonoisotopicMasses = isotopologues.Select(i => i.MonoisotopicMass).Distinct().ToArray();
-            var uniqueIsotopologues = isotopologues.DistinctBy(i => i.MonoisotopicMass).ToList(); 
-            for (int i = 0; i < distinctMonoisotopicMasses.Length; i++)
-            {
-                uniqueIsotopologues[i].ReplacePeaksList(isotopologues
-                    .Where(k => k.MonoisotopicMass == distinctMonoisotopicMasses[i])
-                    .SelectMany(k => k.Peaks)
-                    .Distinct()
-                    .ToList()); 
-            }
             
-            // get top scoring result
-            var orderedByScore = uniqueIsotopologues.OrderByDescending(i => i.TotalIntensity);
-            var topScoringResult = orderedByScore.First(); 
+            var topScoringResult = allResults.First(); 
 
             // test deconvolution results
             Assert.That(topScoringResult.Charge, Is.EqualTo(testCase.ExpectedIonChargeState));

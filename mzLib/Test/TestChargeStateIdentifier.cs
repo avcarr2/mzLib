@@ -98,8 +98,7 @@ public class TestChargeStateIdentifier
         ChargeStateIdentifier csi = new(deconParams);
 
         var results = csi.Deconvolute(scan, scan.Range).ToList();
-        results
-            .CleanUpEnvelopes()
+        results.ToList()
             .OrderByDescending(i => i.TotalIntensity)
             //.DistinctBy(i => i.MonoisotopicMass)
             .ForEach(i => 
@@ -111,7 +110,7 @@ public class TestChargeStateIdentifier
             });
 
         // get the charge states of the isotopic envelopes
-        var dictChargeStateEnvelopes = GetEnvelopes(results.CleanUpEnvelopes())
+        var dictChargeStateEnvelopes = GetEnvelopes(results)
             // possible criteria for removing: 
             // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
             // peaks have less
@@ -150,7 +149,7 @@ public class TestChargeStateIdentifier
         ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 15);
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, scan.Range).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(800,900)).ToList();
         
         results
            // .CleanUpEnvelopes()
@@ -165,7 +164,7 @@ public class TestChargeStateIdentifier
             });
 
         // get the charge states of the isotopic envelopes
-        var dictChargeStateEnvelopes = GetEnvelopes(results.CleanUpEnvelopes())
+        var dictChargeStateEnvelopes = GetEnvelopes(results)
             // possible criteria for removing: 
             // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
             // peaks have less
@@ -206,33 +205,33 @@ public class TestChargeStateIdentifier
 
     }
 
-    private MzSpectrum AddMzSpectraTogether(IEnumerable<MzSpectrum> spectra, double tolerancePpm)
-    {
-        Dictionary<double, double> spectraDict = new(); 
-        List<double> mzValues = new List<double>();
-        List<double> intensityValue = new List<double>();
+    //private MzSpectrum AddMzSpectraTogether(IEnumerable<MzSpectrum> spectra, double tolerancePpm)
+    //{
+    //    Dictionary<double, double> spectraDict = new(); 
+    //    List<double> mzValues = new List<double>();
+    //    List<double> intensityValue = new List<double>();
 
-        foreach (var spectrum in spectra)
-        {
-            for (int i = 0; i < spectrum.XArray.Length; i++)
-            {
-                if (spectraDict.ContainsKey(spectrum.XArray[i]))
-                {
-                    spectraDict[spectrum.XArray[i]] += spectrum.YArray[i]; 
-                }
-                else
-                {
-                    spectraDict.Add(spectrum.XArray[i], spectrum.YArray[i]);
-                }
-            }
-        }
+    //    foreach (var spectrum in spectra)
+    //    {
+    //        for (int i = 0; i < spectrum.XArray.Length; i++)
+    //        {
+    //            if (spectraDict.ContainsKey(spectrum.XArray[i]))
+    //            {
+    //                spectraDict[spectrum.XArray[i]] += spectrum.YArray[i]; 
+    //            }
+    //            else
+    //            {
+    //                spectraDict.Add(spectrum.XArray[i], spectrum.YArray[i]);
+    //            }
+    //        }
+    //    }
 
 
 
-        return new MzSpectrum(spectraDict.Select(i => i.Key)
-                .ToArray(),
-            spectraDict.Select(i => i.Value).ToArray(), true); 
-    }
+    //    return new MzSpectrum(spectraDict.Select(i => i.Key)
+    //            .ToArray(),
+    //        spectraDict.Select(i => i.Value).ToArray(), true); 
+    //}
 
 
     public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, List<IsotopicEnvelope>> dictEnvelope)
@@ -289,16 +288,16 @@ public class TestChargeStateIdentifier
     }
 }
 
-public static class ListIsotopicEnvelopeExtensions
-{
-    public static IEnumerable<IsotopicEnvelope> CleanUpEnvelopes(this IEnumerable<IsotopicEnvelope> envelopes)
-    {
-        foreach (var envelope in envelopes)
-        {
-            if (envelope.Score > 0)
-            {
-                yield return envelope;
-            }
-        }
-    }
-}
+//public static class ListIsotopicEnvelopeExtensions
+//{
+//    public static IEnumerable<IsotopicEnvelope> CleanUpEnvelopes(this IEnumerable<IsotopicEnvelope> envelopes)
+//    {
+//        foreach (var envelope in envelopes)
+//        {
+//            if (envelope.Score > 0)
+//            {
+//                yield return envelope;
+//            }
+//        }
+//    }
+//}
