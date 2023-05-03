@@ -223,7 +223,8 @@ namespace Development.Deconvolution
         {
             // deconvolution
             List<IsotopicEnvelope> allResults = testCase.Deconvoluter
-                .Deconvolute(testCase.SpectrumToDeconvolute, testCase.RangeToDeconvolute).ToList();
+                .Deconvolute(testCase.SpectrumToDeconvolute, testCase.RangeToDeconvolute)
+                .ToList();
 
             // extract tested properties from IsotopicEnvelopeResults
             var resultChargeStates = allResults.Select(p => p.Charge);

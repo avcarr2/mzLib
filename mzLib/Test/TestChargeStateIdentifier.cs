@@ -10,7 +10,6 @@ using Easy.Common.Interfaces;
 using MathNet.Numerics;
 using MathNet.Numerics.Statistics;
 using MzLibUtil;
-using OpenMcdf.Extensions;
 using Readers; 
 namespace Test;
 using NUnit.Framework; 
@@ -177,8 +176,8 @@ public class TestChargeStateIdentifier
     [Test]
     public void VeryBigProteinDeconvolutionTest()
     {
-        int minCharge = 50;
-        int maxCharge = 250;
+        int minCharge = 5;
+        int maxCharge = 100;
         string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
         var reader = MsDataFileReader.GetDataFile(path);
@@ -188,7 +187,7 @@ public class TestChargeStateIdentifier
         ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5);
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, scan.Range).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(890, 900)).ToList();
 
         results
             // .CleanUpEnvelopes()

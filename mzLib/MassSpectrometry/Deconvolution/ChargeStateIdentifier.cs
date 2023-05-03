@@ -216,7 +216,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     // double[] mzValueArray, int minCharge, int maxCharge, double minMzValAllowed, double maxMzValAllowed,
     // double adductMass = Constants.ProtonMass
     
-    private IEnumerable<IsotopicEnvelope> DeconvoluteInternal(MzSpectrum scan, MzRange deconvolutionRange)
+    private IEnumerable<IsotopicEnvelope> DeconvoluteInternal(MzSpectrum scan, MzRange deconvolutionRange, double spectralSimMatchThresh)
     {
         int iterations = 0;
 
@@ -251,29 +251,42 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                     .Select(i => (i.mz, i.intensity)).ToList(), chargeStateLadders).ToList();
             List<ChargeStateLadderMatch?> matchList = ScoreChargeStateLadderMatches(chargeStateLadderMatches, scan).ToList();
 
-            var bestScoringChargeStateLadderMatch = matchList
+            var scoresArray = matchList.Select(i => i.Score); 
+            var massArray = matchList.Select(i => i.MonoisotopicMass);
 
-                .Where(i => i.SequentialChargeStateScore > -1.1)
-                .Where(i => i.PercentageMzValsMatched > 0.2)
-                .MinBy(i => Math.Abs(i.MeanError)); 
-
-            if (bestScoringChargeStateLadderMatch == null)
+            for (int i = 0; i < matchList.Count; i++)
             {
-                iterations++;
-                continue; 
+                bool isLowHarmonicScore = false;
+                bool isLowHarmonicMass = false; 
+                for (int j = 0; j < matchList.Count; j++)
+                {
+                    double scoresScore = scoresArray.ElementAt(i) / scoresArray.ElementAt(j); 
+                    isLowHarmonicScore = Math.Abs(scoresScore - 2d) <= 0.1;
+                    double massScore = massArray.ElementAt(i) / massArray.ElementAt(j);
+                    isLowHarmonicMass = Math.Abs(massScore - 2d) <= 0.02;
+                    if (isLowHarmonicMass)
+                    {
+                        matchList.RemoveAt(j);
+                    }
+                }
+                
             }
 
-            var isotopicEnvelopesIntermediate = FindIsotopicEnvelopes(bestScoringChargeStateLadderMatch!, 
-                scan, deconvolutionRange);
 
-
-
-            foreach (var envelope in isotopicEnvelopesIntermediate)
+            foreach (var match in matchList)
             {
-                if (envelope == null) continue;
-                if (envelope.Peaks.Count < 2) continue;
+                
 
-                yield return RescoreIsotopicEnvelope(envelope);
+                var isotopicEnvelopes = FindIsotopicEnvelopes(match!, scan, deconvolutionRange);
+                foreach (var envelope in isotopicEnvelopes)
+                {
+
+                    RescoreIsotopicEnvelope(envelope);
+                    if (envelope.Score >= spectralSimMatchThresh)
+                    {
+                        yield return envelope; 
+                    }
+                }
             }
             indexer++;
             iterations++;
@@ -282,16 +295,24 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
     public IsotopicEnvelope RescoreIsotopicEnvelope(IsotopicEnvelope envelope)
     {
-        double[] theoreticalMzs = allMasses[envelope.MassIndex]; 
-        double[] theoreticalIntensities = allIntensities[envelope.MassIndex].ToArray();
+        double diff = envelope.MonoisotopicMass + diffToMonoisotopic[envelope.MassIndex] - allMasses[envelope.MassIndex][0]; 
 
-        MzSpectrum theoreticalSpectrum = new MzSpectrum(theoreticalMzs, theoreticalIntensities, false);
+        double[] theoreticalMzs = allMasses[envelope.MassIndex].Select(i => i + diff).ToArray();
+        double maxIntensity = allIntensities[envelope.MassIndex].Max(); 
+        double[] theoreticalIntensities = allIntensities[envelope.MassIndex]
+            .Select(i => i / maxIntensity)
+            .ToArray();
+
+        var theoreticalSpectrum = new MzSpectrum(theoreticalMzs, theoreticalIntensities, false)
+            .FilterByY(0.01, 1.0);
+        var spectrum0 = new MzSpectrum(theoreticalSpectrum.Select(i => i.Mz).ToArray(),
+            theoreticalSpectrum.Select(i => i.Intensity).ToArray(), true); 
 
         MzSpectrum experimentalSpectrum = new MzSpectrum(envelope.Peaks.Select(i => i.mz.ToMass(envelope.Charge)).ToArray(),
             envelope.Peaks.Select(i => i.intensity).ToArray(), true);
 
-        SpectralSimilarity similarity = new SpectralSimilarity(experimentalSpectrum, theoreticalSpectrum,
-            SpectralSimilarity.SpectrumNormalizationScheme.mostAbundantPeak, DeconvolutionParams.PeakMatchPpmTolerance,
+        SpectralSimilarity similarity = new SpectralSimilarity(experimentalSpectrum, spectrum0,
+            SpectralSimilarity.SpectrumNormalizationScheme.mostAbundantPeak, 5,
             false);
 
         double? score = similarity.CosineSimilarity();
@@ -308,7 +329,9 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvoluteInternal(spectrumToDeconvolute, range).OrderByDescending(i => i.Score);
+        return DeconvoluteInternal(spectrumToDeconvolute, range, 0.1)
+            .DistinctBy(i => i.MonoisotopicMass)
+            .OrderByDescending(i => i.Score);
 
         //return CleanUpIsotopologues(isotopicEnvelopeList, 5)
         //    .Where(i => i.Peaks.Count > 2);
@@ -386,6 +409,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             List<double> errorInMostIntense = new();
             List<double> deChargedMassesList = new();
             // assume that the selected m/z is the most intense peak in the envelope. 
+
+            envelope.PercentageMzValsMatched = CompareTheoreticalNumberChargeStatesVsActual(envelope);
             envelope.CalculateChargeStateScore();
             if (envelope.SequentialChargeStateScore < -1.1) continue;
 
@@ -400,10 +425,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 // get the theoretical highest peak in isotopic envelope. 
                 double mz = allMasses[envelope.MassIndex][0]
                     .ToMz((int)Math.Round(envelope.ChargesOfMatchingPeaks[i]));
-                int closestPeakMzIndex = spectrum.GetClosestPeakIndex(mz);
-                double mass = spectrum.XArray[closestPeakMzIndex].ToMass((int)Math.Round(envelope.ChargesOfMatchingPeaks[i]));  
-                monoGuesses.Add(mass - diffToMonoisotopic[envelope.MassIndex]);
-                errorInMostIntense.Add(mass - allMasses[envelope.MassIndex][0]); 
+
+                double monoGuess = deChargedMass - diffToMonoisotopic[envelope.MassIndex]; 
+
+                
+                monoGuesses.Add(monoGuess);
+                
             }
 
             envelope.MonoErrors = errorInMostIntense;
@@ -412,10 +439,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             // more error prone. 
             envelope.MonoisotopicMass = monoGuesses.Median(); 
             
-            envelope.Score = ScoreByIntensityExplained(envelope, scan); 
-            envelope.PercentageMzValsMatched = CompareTheoreticalNumberChargeStatesVsActual(envelope);
-            envelope.CalculateChargeStateScore();
-            yield return envelope;
+            envelope.Score = ScoreByIntensityExplained(envelope, scan);
+            if(envelope != null) yield return envelope;
         }
     }
 
@@ -425,14 +450,13 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         // start with the initial guess (same procedure as above) 
         int closestPeakMzIndex = spectrum.GetClosestPeakIndex(mzMaxIntensity);
         double theoreticalMonoisotopicMass = allMasses[envelope.MassIndex][0] - diffToMonoisotopic[envelope.MassIndex];
+        double initialMassGuess = spectrum.XArray[closestPeakMzIndex].ToMass(charge) - diffToMonoisotopic[envelope.MassIndex];
 
-        
-        
-        // now test to see if a peak on either side 
-        
+        double initialDifference = initialMassGuess - theoreticalMonoisotopicMass;
+
         // iterate over the range.
         int lowIndex = closestPeakMzIndex - 100 > 0 ? closestPeakMzIndex - 100 : 0; 
-        int highIndex = closestPeakMzIndex + 100 >= spectrum.XArray.Length ? closestPeakMzIndex + 100 : spectrum.XArray.Length;
+        int highIndex = closestPeakMzIndex + 100 < spectrum.XArray.Length ? closestPeakMzIndex + 100 : spectrum.XArray.Length;
 
         double[] subsetMzExptl = spectrum.XArray[lowIndex..highIndex];
         int indexOfMin = 0;
@@ -440,7 +464,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         double monoGuess = 0; 
         for (int i = 0; i < subsetMzExptl.Length; i++)
         {
-            double mass = spectrum.XArray[closestPeakMzIndex].ToMass(charge);
+            double mass = subsetMzExptl[i].ToMass(charge);
             double monoIsotopicGuess = mass - diffToMonoisotopic[envelope.MassIndex];
             double errorInMonoisotopicGuess = Math.Abs(monoIsotopicGuess - theoreticalMonoisotopicMass);
 
