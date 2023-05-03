@@ -176,8 +176,8 @@ public class TestChargeStateIdentifier
     [Test]
     public void VeryBigProteinDeconvolutionTest()
     {
-        int minCharge = 5;
-        int maxCharge = 100;
+        int minCharge = 50;
+        int maxCharge = 250;
         string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
         var reader = MsDataFileReader.GetDataFile(path);

@@ -13,7 +13,7 @@ namespace MassSpectrometry
         // For ClassicDeconv. If not used elsewhere, move to that class
         #region Averagine Stuff
 
-        protected const int numAveraginesToGenerate = 1500;
+        protected const int numAveraginesToGenerate = 2500;
         protected static readonly double[][] allMasses = new double[numAveraginesToGenerate][];
         protected static readonly double[][] allIntensities = new double[numAveraginesToGenerate][];
         protected static readonly double[] mostIntenseMasses = new double[numAveraginesToGenerate];
