@@ -263,7 +263,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                     double scoresScore = scoresArray.ElementAt(i) / scoresArray.ElementAt(j); 
                     isLowHarmonicScore = Math.Abs(scoresScore - 2d) <= 0.1;
                     double massScore = massArray.ElementAt(i) / massArray.ElementAt(j);
-                    isLowHarmonicMass = Math.Abs(massScore - 2d) <= 0.02;
+                    isLowHarmonicMass = Math.Abs(massScore - 2d) <= 0.05;
                     if (isLowHarmonicMass)
                     {
                         matchList.RemoveAt(j);
@@ -291,6 +291,81 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             indexer++;
             iterations++;
         }
+    }
+
+    private IEnumerable<IsotopicEnvelope> DeconvoluteInternalFast(MzSpectrum scan, MzRange deconvolutionRange, double spectralSimMatchThresh)
+    {
+        int iterations = 0;
+
+        List<(int index, double mz, double intensity)> mzIntensityPairs =
+            (from i in Enumerable.Range(0, scan.XArray.Length)
+             select (i, scan.XArray[i], scan.YArray[i]))
+            .OrderByDescending(i => i.Item3)
+            .ToList();
+        List<(int Index, double mz, double intensity)> filteredPairs =
+            (from i in Enumerable.Range(0, scan.XArray.Length)
+             where scan.XArray[i] >= deconvolutionRange.Minimum && scan.XArray[i] <= deconvolutionRange.Maximum
+             select (i, scan.XArray[i], scan.YArray[i]))
+            .OrderByDescending(i => i.Item3)
+            .ToList();
+
+        // go to next if it is found in seen 
+        int indexer = 0;
+
+        ConcurrentBag<IsotopicEnvelope> envelopes = new(); 
+
+        Parallel.ForEach(Enumerable.Range(0, filteredPairs.Count), (indexer) =>
+        {
+            var chargeStateLadders = CreateChargeStateLadders(
+                filteredPairs[indexer].Item1,
+                scan.XArray,
+                DeconvolutionParams.MinCharge,
+                DeconvolutionParams.MaxCharge, scan.XArray[0],
+                scan.XArray[^1]).ToList();
+
+            MatchChargeStateLaddersFast(scan, chargeStateLadders.ToList(),
+                DeconvolutionParams.PeakMatchPpmTolerance, out List<List<int>> ladderToIndicesMaps);
+
+            var chargeStateLadderMatches = TransformToChargeStateLadderMatch(ladderToIndicesMaps,
+                mzIntensityPairs.OrderBy(i => i.index)
+                    .Select(i => (i.mz, i.intensity)).ToList(), chargeStateLadders).ToList();
+            List<ChargeStateLadderMatch?> matchList = ScoreChargeStateLadderMatches(chargeStateLadderMatches, scan).ToList();
+
+            foreach (var match in matchList)
+            {
+                var isotopicEnvelopes = FindIsotopicEnvelopes(match!, scan, deconvolutionRange);
+                foreach (var envelope in isotopicEnvelopes)
+                {
+
+                    RescoreIsotopicEnvelope(envelope);
+                    envelopes.Add(envelope);
+                    //if (envelope.Score >= spectralSimMatchThresh)
+                    //{
+                    //    envelopes.Add(envelope);
+                    //}
+                }
+            }
+        });
+        List<IsotopicEnvelope> results = envelopes.OrderByDescending(i => i.Score).ToList(); 
+        //for (int i = 0; i < results.Count; i++)
+        //{
+        //    bool isLowHarmonicScore = false;
+        //    bool isLowHarmonicMass = false;
+        //    for (int j = 0; j < results.Count; j++)
+        //    {
+        //        double scoresScore = results.ElementAt(i).MonoisotopicMass / results.ElementAt(j).MonoisotopicMass;
+        //        isLowHarmonicScore = Math.Abs(scoresScore - 2d) <= 0.1;
+        //        double massScore = results.ElementAt(i).MonoisotopicMass / results.ElementAt(j).MonoisotopicMass;
+        //        isLowHarmonicMass = Math.Abs(massScore - 2d) <= 0.05;
+        //        if (isLowHarmonicMass)
+        //        {
+        //            results.RemoveAt(j);
+        //        }
+        //    }
+
+        //}
+
+        return results.OrderByDescending(i => i.Score);
     }
 
     public IsotopicEnvelope RescoreIsotopicEnvelope(IsotopicEnvelope envelope)
@@ -329,9 +404,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvoluteInternal(spectrumToDeconvolute, range, 0.1)
-            .DistinctBy(i => i.MonoisotopicMass)
-            .OrderByDescending(i => i.Score);
+        return DeconvoluteInternalFast(spectrumToDeconvolute, range, 0.1); 
 
         //return CleanUpIsotopologues(isotopicEnvelopeList, 5)
         //    .Where(i => i.Peaks.Count > 2);
@@ -410,7 +483,11 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             List<double> deChargedMassesList = new();
             // assume that the selected m/z is the most intense peak in the envelope. 
 
+            if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue; 
+
             envelope.PercentageMzValsMatched = CompareTheoreticalNumberChargeStatesVsActual(envelope);
+            if (envelope.PercentageMzValsMatched < 0.2) continue; 
+            
             envelope.CalculateChargeStateScore();
             if (envelope.SequentialChargeStateScore < -1.1) continue;
 
@@ -423,8 +500,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                     .ToMass((int)Math.Round(envelope.ChargesOfMatchingPeaks[i]));
                 deChargedMassesList.Add(deChargedMass);
                 // get the theoretical highest peak in isotopic envelope. 
-                double mz = allMasses[envelope.MassIndex][0]
-                    .ToMz((int)Math.Round(envelope.ChargesOfMatchingPeaks[i]));
 
                 double monoGuess = deChargedMass - diffToMonoisotopic[envelope.MassIndex]; 
 
@@ -501,7 +576,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
     public double CompareTheoreticalNumberChargeStatesVsActual(ChargeStateLadderMatch ladderMatch)
     {
-        return (double)ladderMatch.ChargesOfMatchingPeaks.Count / (double)ladderMatch.TheoreticalLadder.MzVals.Length;
+        int integerUniqueChargeValuesLength = ladderMatch.ChargesOfMatchingPeaks
+            .Select(i => (int)Math.Round(i))
+            .Distinct()
+            .Count(); 
+
+        return (double)integerUniqueChargeValuesLength / (double)ladderMatch.TheoreticalLadder.MzVals.Length;
     }
     public double ScoreByIntensityExplained(ChargeStateLadderMatch match, MzSpectrum spectrum, double threshold = 0.01)
     {
@@ -607,20 +687,16 @@ public class ChargeStateLadderMatch
     }
     public void CalculateChargeStateScore()
     {
-        if (!(PercentageMzValsMatched < 0.25))
-        {
-            var chargesList = ChargesOfMatchingPeaks
-                .Zip(ChargesOfMatchingPeaks.Skip(1), (x, y) => y - x)
-                .Where(i => Math.Abs(i) > 0.1);
-            if (chargesList.Any())
-            {
-                SequentialChargeStateScore = chargesList.Average();
-                return; 
-            }
 
-            SequentialChargeStateScore = -10000;
+        var chargesList = ChargesOfMatchingPeaks
+            .Zip(ChargesOfMatchingPeaks.Skip(1), (x, y) => y - x)
+            .Where(i => Math.Abs(i) > 0.1);
+        if (chargesList.Any())
+        {
+            SequentialChargeStateScore = chargesList.Average();
             return; 
         }
+
         SequentialChargeStateScore = -10000;
     }
     public (double mzMostIntense, double maxIntensityPeak) GetMostIntenseTuple()
@@ -666,11 +742,14 @@ public class ChargeStateDeconvolutionParams : DeconvolutionParameters
     public int MinCharge { get; }
     public int MaxCharge { get; }
     public double PeakMatchPpmTolerance { get; }
+    public double MinimumMassDa { get; set; }
 
-    public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm) : base()
+    public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm, 
+        double minimumMass = 9500) : base()
     {
         MinCharge = minCharge; 
         MaxCharge = maxCharge;
         PeakMatchPpmTolerance = peakMatchTolerancePpm;
+        MinimumMassDa = minimumMass; 
     }
 }

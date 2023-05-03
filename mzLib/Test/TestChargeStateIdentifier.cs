@@ -140,15 +140,14 @@ public class TestChargeStateIdentifier
         int minCharge = 5;
         int maxCharge = 100; 
         string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
-        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
         var reader = MsDataFileReader.GetDataFile(path); 
         reader.InitiateDynamicConnection();
-        var scan = reader.GetOneBasedScanFromDynamicConnection(1255, filteringParams).MassSpectrum;
+        var scan = reader.GetOneBasedScanFromDynamicConnection(679).MassSpectrum;
 
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 15);
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 20);
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, new MzRange(800,900)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(600,650)).ToList();
         
         results
            // .CleanUpEnvelopes()
@@ -176,18 +175,17 @@ public class TestChargeStateIdentifier
     [Test]
     public void VeryBigProteinDeconvolutionTest()
     {
-        int minCharge = 50;
+        int minCharge = 20;
         int maxCharge = 250;
         string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
-        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.05);
         var reader = MsDataFileReader.GetDataFile(path);
         reader.InitiateDynamicConnection();
-        var scan = reader.GetOneBasedScanFromDynamicConnection(1023, filteringParams).MassSpectrum;
+        var scan = reader.GetOneBasedScanFromDynamicConnection(1016).MassSpectrum;
 
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5);
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 10);
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, new MzRange(890, 900)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(985, 1000)).ToList();
 
         results
             // .CleanUpEnvelopes()
