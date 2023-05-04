@@ -404,11 +404,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvoluteInternalFast(spectrumToDeconvolute, range, 0.1); 
-
-        //return CleanUpIsotopologues(isotopicEnvelopeList, 5)
-        //    .Where(i => i.Peaks.Count > 2);
-        //return MergeIsotopicEnvelopes(cleanedList); 
+        return DeconvoluteInternalFast(spectrumToDeconvolute, range, 0.75);
     }
 
     private IEnumerable<IsotopicEnvelope> MergeIsotopicEnvelopes(IEnumerable<IsotopicEnvelope> envelopes)
