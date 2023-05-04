@@ -26,10 +26,10 @@ namespace MassSpectrometry
         /// <param name="spectrum"></param>
         /// <param name="threshold"></param>
         /// <returns></returns>
-        internal double ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.01)
+        internal void ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.01)
         {
             double spectrumThresholdVal = spectrum.YArray.Max() * threshold;
-            return IntensitiesOfMatchingPeaks.Where(i => i >= spectrumThresholdVal).Sum();
+            Score = IntensitiesOfMatchingPeaks.Where(i => i >= spectrumThresholdVal).Sum();
         }
         /// <summary>
         /// Calculates the average spacing between distinct charge states. If the charge states are sequential,
@@ -87,6 +87,20 @@ namespace MassSpectrometry
             }
 
             EnvelopeScore = 1 - sum1 / sum2;
+        }
+        /// <summary>
+        /// Calculates the percentage of matched mz values in an experimental spectrum compared to a set of theoretical mz values. 
+        /// </summary>
+        /// <param name="ladderMatch"></param>
+        /// <returns></returns>
+        internal void CompareTheoreticalNumberChargeStatesVsActual()
+        {
+            int integerUniqueChargeValuesLength = ChargesOfMatchingPeaks
+                .Select(i => (int)Math.Round(i))
+                .Distinct()
+                .Count();
+
+            PercentageMzValsMatched = (double)integerUniqueChargeValuesLength / (double)TheoreticalLadder.MzVals.Length;
         }
     }
 

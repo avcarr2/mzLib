@@ -13,7 +13,7 @@ using MathNet.Numerics.Statistics;
 using System.Runtime.CompilerServices;
 
 namespace MassSpectrometry;
-[InternalsVisibleTo("Test")]
+
 public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 {
     private ChargeStateDeconvolutionParams DeconvolutionParams { get; }
@@ -35,20 +35,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     {
         return diffToMonoisotopic[massIndex];
     }
-    /// <summary>
-    /// Calculates the percentage of matched mz values in an experimental spectrum compared to a set of theoretical mz values. 
-    /// </summary>
-    /// <param name="ladderMatch"></param>
-    /// <returns></returns>
-    internal double CompareTheoreticalNumberChargeStatesVsActual(ChargeStateLadderMatch ladderMatch)
-    {
-        int integerUniqueChargeValuesLength = ladderMatch.ChargesOfMatchingPeaks
-            .Select(i => (int)Math.Round(i))
-            .Distinct()
-            .Count();
-
-        return (double)integerUniqueChargeValuesLength / (double)ladderMatch.TheoreticalLadder.MzVals.Length;
-    }
+    
     /// <summary>
     /// Given a spectrum and an mz range, uses the ChargeStateLadderMatch object to get the theoretical isotopic envelope, then
     /// grabs the peaks that are within the range peaks in the theoretical isotopic envelope greater than a relative intensity of 0.05. 
@@ -85,7 +72,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     /// <param name="minMzValAllowed"></param>
     /// <param name="maxMzValAllowed"></param>
     /// <returns></returns>
-    private IEnumerable<ChargeStateLadder> CreateChargeStateLadders(int indexOfMaxIntensityPeak,
+    internal IEnumerable<ChargeStateLadder> CreateChargeStateLadders(int indexOfMaxIntensityPeak,
         double[] mzValueArray, int minCharge, int maxCharge, double minMzValAllowed, double maxMzValAllowed)
     {
         double mzVal = mzValueArray[indexOfMaxIntensityPeak];
@@ -334,7 +321,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
             if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue; 
 
-            envelope.PercentageMzValsMatched = CompareTheoreticalNumberChargeStatesVsActual(envelope);
+            envelope.CompareTheoreticalNumberChargeStatesVsActual();
             if (envelope.PercentageMzValsMatched < 0.2) continue; 
             
             envelope.CalculateChargeStateScore();
@@ -360,8 +347,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             // more error prone. 
 
             envelope.MonoisotopicMass = monoGuesses.Median();
-
-            envelope.Score = envelope.ScoreByIntensityExplained(scan); 
+            envelope.ScoreByIntensityExplained(scan); 
             if(envelope != null) yield return envelope;
         }
     }

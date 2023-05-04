@@ -1,23 +1,93 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.Xml;
-using System.Windows.Markup;
-using System.Windows.Media.Animation;
+using Chemistry;
 using Easy.Common.Extensions;
-using Easy.Common.Interfaces;
-using MathNet.Numerics;
-using MathNet.Numerics.Statistics;
 using MzLibUtil;
-using Readers; 
-namespace Test;
+using Readers;
 using NUnit.Framework; 
 using MassSpectrometry;
 
+
+namespace Test;
 public class TestChargeStateIdentifier
 {
+    [Test]
+    public void TestCreateChargeStateLadders()
+    {
+        ChargeStateDeconvolutionParams deconParams = new(1, 5, 5);
+        ChargeStateIdentifier csi = new(deconParams);
+        double[] testMzVals = new[] { 1000.0 }; 
 
+        IEnumerable<ChargeStateLadder> ladders = csi.CreateChargeStateLadders(0, testMzVals, 
+            deconParams.MinCharge, deconParams.MaxCharge, 
+            500d, 2000d);
+        var massArrayTest = ladders.Select(i => i.Mass).ToArray();
+        var massArrayExpected = new[] { 998.9927, 1997.98545, 2996.9782, 3995.97089, 4994.96361 };
+        Assert.That(massArrayExpected, Is.EqualTo(massArrayTest).Within(0.01));
+        var valsArray = ladders.Select(i => i.MzVals.Length).ToArray();
+        var expectedArrayLengths = new int[] { 2, 4, 4, 4, 3 };
+        Assert.That(valsArray, Is.EqualTo(expectedArrayLengths));
+    }
+
+    [Test]
+    public void TestChargeStateLadderMatch()
+    {
+        double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007};
+        double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759}; 
+
+        MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldWork, intenValsShouldWork, true);
+
+        ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork); 
+        ChargeStateLadderMatch match = new();
+        match.TheoreticalLadder = ladder; 
+        match.IntensitiesOfMatchingPeaks = intenValsShouldWork.ToList(); 
+        match.MatchingMzPeaks = mzValsShouldWork.ToList();
+        match.ChargesOfMatchingPeaks = Enumerable.Range(1, 6).Reverse().Select(i =>(double)i).ToList();
+
+        match.ScoreByIntensityExplained(spectrumShouldWork, threshold:0); 
+        match.CalculateEnvelopeScore();
+        match.CalculateChargeStateScore();
+        match.CompareTheoreticalNumberChargeStatesVsActual(); 
+
+        Assert.That(match.EnvelopeScore, Is.EqualTo(0.9765).Within(0.05));
+        Assert.That(match.Score, Is.EqualTo(0.858).Within(0.05));
+        Assert.That(match.PercentageMzValsMatched, Is.EqualTo(1.0).Within(0.01));
+        Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-1d));
+    }
+
+    [Test]
+    public void TestChargeStateLadderFailures()
+    {
+        double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007 };
+        double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759 };
+        ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork);
+
+        double[] mzValsShouldntWork = new[] { 201.007, 334.3403, 1001.007 };
+        double[] intenValsShouldntWork = new[] { 0.176033, 0.176033, 0.064759 };
+
+        MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldntWork, intenValsShouldntWork, true);
+
+        ChargeStateLadderMatch match = new();
+        match.TheoreticalLadder = ladder;
+        match.IntensitiesOfMatchingPeaks = intenValsShouldntWork.ToList();
+        match.MatchingMzPeaks = mzValsShouldntWork.ToList();
+        match.ChargesOfMatchingPeaks = new List<double>() { 6, 4, 2 }; 
+        
+        match.ScoreByIntensityExplained(spectrumShouldWork, threshold: 0);
+        match.CalculateEnvelopeScore();
+        match.CalculateChargeStateScore();
+        match.CompareTheoreticalNumberChargeStatesVsActual();
+
+        Assert.That(match.EnvelopeScore, Is.EqualTo(0d));
+        Assert.That(match.Score, Is.EqualTo(intenValsShouldntWork.Sum()));
+        Assert.That(match.PercentageMzValsMatched, Is.EqualTo(0.5).Within(0.01));
+        Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-2d));
+    }
+    
+    // testing the scoring function is going to be a pain in the ass. 
 
     [Test]
     [TestCase(2,60)]
