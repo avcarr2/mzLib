@@ -10,9 +10,10 @@ using MzLibUtil;
 using Constants = Chemistry.Constants;
 using Chemistry;
 using MathNet.Numerics.Statistics;
+using System.Runtime.CompilerServices;
 
 namespace MassSpectrometry;
-
+[InternalsVisibleTo("Test")]
 public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 {
     private ChargeStateDeconvolutionParams DeconvolutionParams { get; }
