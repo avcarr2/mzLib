@@ -139,73 +139,91 @@ public class TestChargeStateIdentifier
     }
 
     [Test]
-    public void TestDeconvolutionBigThings()
+    public void TestGroundTruthDataSet()
     {
-        
-        int minCharge = 5;
-        int maxCharge = 100; 
-        string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
-        var reader = MsDataFileReader.GetDataFile(path); 
-        reader.InitiateDynamicConnection();
-        var scan = reader.GetOneBasedScanFromDynamicConnection(679).MassSpectrum;
-
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 20);
-        ChargeStateIdentifier csi = new(deconParams);
-
-        var results = csi.Deconvolute(scan, new MzRange(600,650)).ToList();
-        
-        results
-           // .CleanUpEnvelopes()
-            .OrderByDescending(i => i.Score)
-            //.DistinctBy(i => i.MonoisotopicMass)
+        string path = Path.Combine(@"C:\Users\Austin\Documents\Projects\MsDataSimulatorOutput\train.mzML");
+        MsDataFile file = MsDataFileReader.GetDataFile(path); 
+        file.InitiateDynamicConnection();
+        MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(187);
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 10);
+        ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams); 
+        decon.Deconvolute(scan.MassSpectrum, new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
+            .DistinctBy(i => i.MonoisotopicMass)
+            .ToList()
             .ForEach(i =>
             {
-                if (i != null)
-                {
-                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
-                }
+                Console.WriteLine("{0},{1},{2}",i.MonoisotopicMass, i.Charge, i.Score);
             });
-
-        // get the charge states of the isotopic envelopes
-        var dictChargeStateEnvelopes = GetEnvelopes(results)
-            // possible criteria for removing: 
-            // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
-            // peaks have less
-            .OrderByDescending(i => i.Value.Sum(j => j.Score))
-            .Take(30)
-            .ToDictionary(i => i.Key, i => i.Value);
-        // to plot: 
     }
 
-    [Test]
-    public void VeryBigProteinDeconvolutionTest()
-    {
-        int minCharge = 50;
-        int maxCharge = 250;
-        string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
-        var reader = MsDataFileReader.GetDataFile(path);
-        reader.InitiateDynamicConnection();
-        var scan = reader.GetOneBasedScanFromDynamicConnection(1016).MassSpectrum;
+    // [Test]
+    // public void TestDeconvolutionBigThings()
+    // {
+    //     
+    //     int minCharge = 5;
+    //     int maxCharge = 100; 
+    //     string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
+    //     var reader = MsDataFileReader.GetDataFile(path); 
+    //     reader.InitiateDynamicConnection();
+    //     var scan = reader.GetOneBasedScanFromDynamicConnection(679).MassSpectrum;
+    //
+    //     ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 20);
+    //     ChargeStateIdentifier csi = new(deconParams);
+    //
+    //     var results = csi.Deconvolute(scan, new MzRange(600,650)).ToList();
+    //     
+    //     results
+    //        // .CleanUpEnvelopes()
+    //         .OrderByDescending(i => i.Score)
+    //         //.DistinctBy(i => i.MonoisotopicMass)
+    //         .ForEach(i =>
+    //         {
+    //             if (i != null)
+    //             {
+    //                 Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+    //             }
+    //         });
+    //
+    //     // get the charge states of the isotopic envelopes
+    //     var dictChargeStateEnvelopes = GetEnvelopes(results)
+    //         // possible criteria for removing: 
+    //         // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
+    //         // peaks have less
+    //         .OrderByDescending(i => i.Value.Sum(j => j.Score))
+    //         .Take(30)
+    //         .ToDictionary(i => i.Key, i => i.Value);
+    //     // to plot: 
+    // }
 
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 10);
-        ChargeStateIdentifier csi = new(deconParams);
-
-        var results = csi.Deconvolute(scan, new MzRange(985, 1000)).ToList();
-
-        results
-            // .CleanUpEnvelopes()
-            .OrderByDescending(i => i.TotalIntensity)
-            //.DistinctBy(i => i.MonoisotopicMass)
-            .ForEach(i =>
-            {
-                if (i != null)
-                {
-                    Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
-                }
-            });
-        // suppose that you have isolated a 
-
-    }
+    // [Test]
+    // public void VeryBigProteinDeconvolutionTest()
+    // {
+    //     int minCharge = 50;
+    //     int maxCharge = 250;
+    //     string path = @"D:\DeconDataSet\SEC4-08AUG16_5uLinj_3SEC_000021 (2)..mzML";
+    //     var reader = MsDataFileReader.GetDataFile(path);
+    //     reader.InitiateDynamicConnection();
+    //     var scan = reader.GetOneBasedScanFromDynamicConnection(1016).MassSpectrum;
+    //
+    //     ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 10);
+    //     ChargeStateIdentifier csi = new(deconParams);
+    //
+    //     var results = csi.Deconvolute(scan, new MzRange(985, 1000)).ToList();
+    //
+    //     results
+    //         // .CleanUpEnvelopes()
+    //         .OrderByDescending(i => i.TotalIntensity)
+    //         //.DistinctBy(i => i.MonoisotopicMass)
+    //         .ForEach(i =>
+    //         {
+    //             if (i != null)
+    //             {
+    //                 Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
+    //             }
+    //         });
+    //     // suppose that you have isolated a 
+    //
+    // }
 
     //private MzSpectrum AddMzSpectraTogether(IEnumerable<MzSpectrum> spectra, double tolerancePpm)
     //{

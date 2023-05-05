@@ -23,7 +23,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvolutePrivateFast(spectrumToDeconvolute, range, 0.75);
+        return DeconvolutePrivateFast(spectrumToDeconvolute, range, 0.0);
     }
     /// <summary>
     /// Provides access to the diff to monoisotopic mass value stored in the deconvolution algorithm abstract class.
@@ -58,7 +58,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
                 MzRange newRange = new(minMzToTake, maxMzToTake);
 
-                yield return FillIsotopicEnvelopeByBounds(match, scan, range, charge);
+                var envelope = FillIsotopicEnvelopeByBounds(match, scan, newRange, charge);
+                if (envelope != null) yield return envelope; 
             }
         }
     }
@@ -181,8 +182,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     /// <returns></returns>
     private IEnumerable<IsotopicEnvelope> DeconvolutePrivateFast(MzSpectrum scan, MzRange deconvolutionRange, double spectralSimMatchThresh)
     {
-        int iterations = 0;
-
         List<(int index, double mz, double intensity)> mzIntensityPairs =
             (from i in Enumerable.Range(0, scan.XArray.Length)
              select (i, scan.XArray[i], scan.YArray[i]))
@@ -196,7 +195,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             .ToList();
 
         // go to next if it is found in seen 
-        int indexer = 0;
 
         ConcurrentBag<IsotopicEnvelope> envelopes = new(); 
 
@@ -234,7 +232,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         });
         List<IsotopicEnvelope> results = envelopes.OrderByDescending(i => i.Score).ToList();
         
-        return results.OrderByDescending(i => i.Score);
+        return results;
     }
     /// <summary>
     /// Basic function for harmonic checking, if we want to do that in the future. However, it is a little too zealous, and removes more harmonics than it should. 
@@ -268,6 +266,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     /// <param name="envelope"></param>
     private void RescoreIsotopicEnvelope(IsotopicEnvelope envelope)
     {
+        if (envelope == null) return; 
+
         double diff = envelope.MonoisotopicMass + diffToMonoisotopic[envelope.MassIndex] - allMasses[envelope.MassIndex][0]; 
 
         double[] theoreticalMzs = allMasses[envelope.MassIndex].Select(i => i + diff).ToArray();
@@ -317,13 +317,13 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             GetMassIndex(envelope, scan);
             List<double> monoGuesses = new();
             List<double> errorInMostIntense = new();
-            // assume that the selected m/z is the most intense peak in the envelope. 
+            //assume that the selected m / z is the most intense peak in the envelope. 
 
-            if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue; 
+            if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue;
 
             envelope.CompareTheoreticalNumberChargeStatesVsActual();
-            if (envelope.PercentageMzValsMatched < 0.2) continue; 
-            
+            if (envelope.PercentageMzValsMatched < 0.2) continue;
+
             envelope.CalculateChargeStateScore();
             if (envelope.SequentialChargeStateScore < -1.1) continue;
 
@@ -391,9 +391,13 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     {
         List<(double, double)> listOfPeaks = scan.Extract(isolationRange).Select(i => (i.Mz, i.Intensity)).ToList();
         double totalIntensity = listOfPeaks.Sum(i => i.Item2);
+        if (listOfPeaks.Any())
+        {
+            return new(listOfPeaks, match.MonoisotopicMass, chargeState,
+                totalIntensity, 0d, match.MassIndex);
+        }
 
-        return new(listOfPeaks, match.MonoisotopicMass, chargeState,
-            totalIntensity, 0d, match.MassIndex);
+        return null; 
     }
     
 }

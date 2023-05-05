@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
+using Chemistry;
 
 namespace MassSpectrometry
 {
@@ -41,7 +42,7 @@ namespace MassSpectrometry
         }
         public double GetMostAbundantObservedIsotopicMass(List<(double mz, double intensity)> peaks, int charge)
         {
-            return peaks.MaxBy(p => p.intensity).mz * charge;
+            return (peaks.MaxBy(p => p.intensity).mz).ToMass(charge); 
         }
 
         public override string ToString()
