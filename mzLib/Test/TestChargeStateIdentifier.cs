@@ -144,16 +144,26 @@ public class TestChargeStateIdentifier
         string path = Path.Combine(@"C:\Users\Austin\Documents\Projects\MsDataSimulatorOutput\train.mzML");
         MsDataFile file = MsDataFileReader.GetDataFile(path); 
         file.InitiateDynamicConnection();
-        MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(187);
-        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 10);
-        ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams); 
+        MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(116);
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1);
+        ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
         decon.Deconvolute(scan.MassSpectrum, new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
             .DistinctBy(i => i.MonoisotopicMass)
             .ToList()
             .ForEach(i =>
             {
-                Console.WriteLine("{0},{1},{2}",i.MonoisotopicMass, i.Charge, i.Score);
+                Console.WriteLine("{0},{1},{2}", i.MonoisotopicMass, i.Charge, i.Score);
             });
+        Console.WriteLine("\n\n");
+        ClassicDeconvolutionParameters classicParams = new ClassicDeconvolutionParameters(5, 120, 4.0, 3.0); 
+        ClassicDeconvolutionAlgorithm classicDecon = new ClassicDeconvolutionAlgorithm(classicParams);
+        classicDecon.Deconvolute(scan.MassSpectrum,
+            new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
+            .DistinctBy(i => i.MonoisotopicMass)
+            .ForEach(i =>
+            {
+                Console.WriteLine("{0},{1},{2}", i.MonoisotopicMass, i.Charge, i.Score);
+            }); 
     }
 
     // [Test]

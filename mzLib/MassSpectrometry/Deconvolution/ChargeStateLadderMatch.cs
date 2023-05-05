@@ -26,7 +26,7 @@ namespace MassSpectrometry
         /// <param name="spectrum"></param>
         /// <param name="threshold"></param>
         /// <returns></returns>
-        internal void ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.01)
+        internal void ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.00001)
         {
             double spectrumThresholdVal = spectrum.YArray.Max() * threshold;
             Score = IntensitiesOfMatchingPeaks.Where(i => i >= spectrumThresholdVal).Sum();

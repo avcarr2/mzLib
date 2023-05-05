@@ -23,7 +23,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvolutePrivateFast(spectrumToDeconvolute, range, 0.0);
+        return DeconvolutePrivateFast(spectrumToDeconvolute, range, 0.75);
     }
     /// <summary>
     /// Provides access to the diff to monoisotopic mass value stored in the deconvolution algorithm abstract class.
@@ -285,10 +285,10 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             envelope.Peaks.Select(i => i.intensity).ToArray(), true);
 
         SpectralSimilarity similarity = new SpectralSimilarity(experimentalSpectrum, spectrum0,
-            SpectralSimilarity.SpectrumNormalizationScheme.mostAbundantPeak, 5,
+            SpectralSimilarity.SpectrumNormalizationScheme.mostAbundantPeak, 1,
             false);
 
-        double? score = similarity.CosineSimilarity();
+        double? score = similarity.SpectralContrastAngle();
         if (score.HasValue)
         {
             envelope.Rescore(score.Value);
@@ -321,14 +321,14 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
             if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue;
 
-            envelope.CompareTheoreticalNumberChargeStatesVsActual();
-            if (envelope.PercentageMzValsMatched < 0.2) continue;
+            //envelope.CompareTheoreticalNumberChargeStatesVsActual();
+            //if (envelope.PercentageMzValsMatched < 0.2) continue;
 
-            envelope.CalculateChargeStateScore();
-            if (envelope.SequentialChargeStateScore < -1.1) continue;
+            //envelope.CalculateChargeStateScore();
+            //if (envelope.SequentialChargeStateScore < -1.1) continue;
 
-            envelope.CalculateEnvelopeScore();
-            if (envelope.EnvelopeScore < 0.1) continue;
+            //envelope.CalculateEnvelopeScore();
+            //if (envelope.EnvelopeScore < 0.1) continue;
 
             for (int i = 0; i < envelope.MatchingMzPeaks.Count; i++)
             {
@@ -347,7 +347,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             // more error prone. 
 
             envelope.MonoisotopicMass = monoGuesses.Median();
-            envelope.ScoreByIntensityExplained(scan); 
+            envelope.ScoreByIntensityExplained(scan);
             if(envelope != null) yield return envelope;
         }
     }
