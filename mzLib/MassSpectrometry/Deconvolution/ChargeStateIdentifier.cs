@@ -100,8 +100,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     private void MatchChargeStateLaddersFast(MzSpectrum scan, List<ChargeStateLadder> chargeStateLadders,
         double ppmMatchTolerance, out List<List<int>> ladderToIndicesMaps)
     {
-        
-
         var ladderDict = new ConcurrentDictionary<int, List<int>>();
 
         Parallel.ForEach(Enumerable.Range(0, chargeStateLadders.Count), ladder =>
@@ -161,7 +159,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 listIntVals.Add(mzIntensityList[indices].Item2);
             }
 
-            List<double> chargesOfMatchingPeaks = listMzVals.Select(i => (ladder.Mass - Constants.ProtonMass) / i).ToList();
+            List<double> chargesOfMatchingPeaks = listMzVals.Select(i => ladder.Mass / i).ToList();
 
             ChargeStateLadderMatch ladderMatch = new()
             {
