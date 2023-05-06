@@ -45,10 +45,10 @@ namespace MassSpectrometry
                 // peak matching tolerance was broad enough to grab more than one peak. However, because the 
                 // ppm tolerance for peak matching is so low, the difference between consecutive peaks should remain 
                 // approximately the same. 
-                .Where(i => Math.Abs(i) > 0.1);
+                .Where(i => Math.Abs(i) > 0.1).ToList();
             if (chargesList.Any())
             {
-                SequentialChargeStateScore = chargesList.Average();
+                SequentialChargeStateScore = chargesList.Median();
                 return;
             }
 

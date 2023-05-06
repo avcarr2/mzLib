@@ -148,6 +148,7 @@ public class TestChargeStateIdentifier
         ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1);
         ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
         decon.Deconvolute(scan.MassSpectrum, new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
+            .DistinctBy(i => i.MonoisotopicMass)
             .ToList()
             .ForEach(i =>
             {
@@ -158,6 +159,7 @@ public class TestChargeStateIdentifier
         ClassicDeconvolutionAlgorithm classicDecon = new ClassicDeconvolutionAlgorithm(classicParams);
         classicDecon.Deconvolute(scan.MassSpectrum,
             new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
+            .ToList()
             .DistinctBy(i => i.MonoisotopicMass)
             .ForEach(i =>
             {

@@ -274,7 +274,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             .Select(i => i / maxIntensity)
             .ToArray();
 
-        var theoreticalSpectrum = new MzSpectrum(theoreticalMzs, theoreticalIntensities, false)
+        var theoreticalSpectrum = new MzSpectrum(theoreticalMzs, theoreticalIntensities, true)
             .FilterByY(0.01, 1.0);
         var spectrum0 = new MzSpectrum(theoreticalSpectrum.Select(i => i.Mz).ToArray(),
             theoreticalSpectrum.Select(i => i.Intensity).ToArray(), true); 
@@ -286,7 +286,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             SpectralSimilarity.SpectrumNormalizationScheme.mostAbundantPeak, 1,
             false);
 
-        double? score = similarity.SpectralContrastAngle();
+        double? score = similarity.CosineSimilarity();
         if (score.HasValue)
         {
             envelope.Rescore(score.Value);
@@ -319,14 +319,14 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
             if (envelope.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) continue;
 
-            //envelope.CompareTheoreticalNumberChargeStatesVsActual();
-            //if (envelope.PercentageMzValsMatched < 0.2) continue;
+            envelope.CompareTheoreticalNumberChargeStatesVsActual();
+            if (envelope.PercentageMzValsMatched < 0.2) continue;
 
-            //envelope.CalculateChargeStateScore();
-            //if (envelope.SequentialChargeStateScore < -1.1) continue;
+            envelope.CalculateChargeStateScore();
+            if (envelope.SequentialChargeStateScore < -1.1) continue;
 
-            //envelope.CalculateEnvelopeScore();
-            //if (envelope.EnvelopeScore < 0.1) continue;
+            envelope.CalculateEnvelopeScore();
+            if (envelope.EnvelopeScore < 0.1) continue;
 
             for (int i = 0; i < envelope.MatchingMzPeaks.Count; i++)
             {
@@ -345,6 +345,11 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             // more error prone. 
 
             envelope.MonoisotopicMass = monoGuesses.Median();
+            // ensures that the lowest mass returned is the monoisotopic mass. 
+            //if (envelope.MonoisotopicMass < allMasses[envelope.MassIndex][0] - diffToMonoisotopic[envelope.MassIndex])
+            //{
+            //    continue;
+            //}
             envelope.ScoreByIntensityExplained(scan);
             if(envelope != null) yield return envelope;
         }
