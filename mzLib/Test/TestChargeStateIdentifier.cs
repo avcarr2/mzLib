@@ -101,27 +101,51 @@ public class TestChargeStateIdentifier
         ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5); 
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, scan.Range).ToList();
-        results.ToList()
-            .OrderByDescending(i => i.TotalIntensity)
+        var results = csi.Deconvolute(scan, new MzRange(800, 900)).ToList();
+        var chargeState = results.ToList()
+            .ObserveAdjacentChargeStates()
+            .OrderByDescending(i => i.Key)
             //.DistinctBy(i => i.MonoisotopicMass)
-            .ForEach(i => 
-            { 
-                if (i != null)
-                {
-                    //Console.WriteLine("{0}\t{1}\t{2}", i.MonoisotopicMass, i.Charge, i.Score);
-                }
+            ;
+
+
+        char[] separators = new char[] { '(', ')', ','}; 
+        Console.WriteLine("mz\tintensity\tchargeState\tmonoMass\tscore");
+        List<(double, double, int, double, double)> plottingTuples = new List<(double, double, int, double, double)>();
+
+        chargeState.ForEach(j =>
+        {
+            foreach (var envelope in j.Value)
+            {
+                plottingTuples.Add(GetPlottingTuple(envelope));
+                //Console.WriteLine(string.Join("\t",GetPlottingTuple(envelope)
+                //    .ToString()
+                //    .Split(separators))); 
+            }
+
+            //Console.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}",
+            //    j.Key,
+            //    string.Join(";", j.Value.Select(i => i.Charge)),
+            //    string.Join(",", string.Join(",", j.Value.Select(i => i.Score))),
+            //    string.Join(",", j.Value.Select(i =>
+            //        (i.MonoisotopicMass + ChargeStateIdentifier.GetDiffToMonoisotopic(i.MassIndex)).ToMz(i.Charge))),
+            //    string.Join(",", j.Value.Select(i => i.)));
+        });
+        plottingTuples.OrderByDescending(i => i.Item1)
+            .ForEach(i =>
+            {
+                Console.WriteLine(string.Join("\t", i.ToString().Split(separators))); 
             });
 
         // get the charge states of the isotopic envelopes
-        var dictChargeStateEnvelopes = GetEnvelopes(results)
-            // possible criteria for removing: 
-            // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
-            // peaks have less
-            .OrderByDescending(i => i.Value.Sum(j => j.Score))
-            .Take(30)
-            .ToDictionary(i => i.Key, i => i.Value); 
-        // to plot: 
+        //var dictChargeStateEnvelopes = GetEnvelopes(results)
+        //    // possible criteria for removing: 
+        //    // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
+        //    // peaks have less
+        //    .OrderByDescending(i => i.Value.Sum(j => j.Score))
+        //    .Take(30)
+        //    .ToDictionary(i => i.Key, i => i.Value); 
+        //// to plot: 
         // x values: mz of most intense peak in isotopic envelopes 
         // y values: most intense peak in isotopic envelope 
         // charge state 
@@ -130,11 +154,11 @@ public class TestChargeStateIdentifier
         // how do you figure out where to divide the line bewteen real and harmonic? 
 
         // plot these three things on top of the original spectrum 
-        var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes);
-        foreach (var point in plottingPoints)
-        {
-            Console.WriteLine("{0},{1},{2},{3}", point.xVal, point.yVal, point.chargeState, point.monoisotopicMass);
-        }
+        //var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes);
+        //foreach (var point in plottingPoints)
+        //{
+        //    Console.WriteLine("{0},{1},{2},{3}", point.xVal, point.yVal, point.chargeState, point.monoisotopicMass);
+        //}
 
     }
 
@@ -147,24 +171,13 @@ public class TestChargeStateIdentifier
         MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(116);
         ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1);
         ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
-        decon.Deconvolute(scan.MassSpectrum, new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
-            .DistinctBy(i => i.MonoisotopicMass)
-            .ToList()
-            .ForEach(i =>
-            {
-                Console.WriteLine("{0},{1},{2}", i.MonoisotopicMass, i.Charge, i.Score);
-            });
-        Console.WriteLine("\n\n");
-        ClassicDeconvolutionParameters classicParams = new ClassicDeconvolutionParameters(5, 120, 4.0, 3.0); 
-        ClassicDeconvolutionAlgorithm classicDecon = new ClassicDeconvolutionAlgorithm(classicParams);
-        classicDecon.Deconvolute(scan.MassSpectrum,
-            new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
-            .ToList()
-            .DistinctBy(i => i.MonoisotopicMass)
-            .ForEach(i =>
-            {
-                Console.WriteLine("{0},{1},{2}", i.MonoisotopicMass, i.Charge, i.Score);
-            }); 
+        var results = decon.Deconvolute(scan.MassSpectrum, new MzRange(900d, 1000d))
+            .ToList();
+        var chargeStateEnvelopes = results
+            .ObserveAdjacentChargeStates()
+            .OrderByDescending(i => i.Key);
+        
+        // you could score by euclidean distance and then cluster the peaks together i think. 
     }
 
     // [Test]
@@ -277,25 +290,48 @@ public class TestChargeStateIdentifier
             foreach (var envelope in kvp.Value)
             {
                 double mostAbundantMz =
-                    (ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex) + mass) / (double)envelope.Charge + Chemistry.Constants.ProtonMass;
+                    (ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex) + mass).ToMz(envelope.Charge);
                 // retrieve the intensity corresponding to the mostabundant isotopic mass
-                double[] arrayOfMzVals = envelope.Peaks
+                var arrayOfMzVals = envelope.Peaks
                     .OrderBy(i => i.mz)
-                    .Select(i => i.mz)
                     .ToArray(); 
 
-                int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals, mostAbundantMz); 
+                int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals.Select(i => i.mz).ToArray(), mostAbundantMz); 
 
                 indexOfMostAbundant = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
-                indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count - 1 : indexOfMostAbundant;
-                // the OrderBy shouldn't be repeated, but I'm tired and about to go home. 
-                var maxPairs = envelope.Peaks.OrderBy(i=>i.mz).ToArray()[indexOfMostAbundant]; 
+                indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count: indexOfMostAbundant;
+                var maxPairs = arrayOfMzVals[indexOfMostAbundant];
+                
 
                 int charge = envelope.Charge;
                 outputList.Add((maxPairs.mz, maxPairs.intensity, charge, mass));
             }
         }
         return outputList;
+    }
+
+    public (double xVal, double yVal, int chargeState, double monoMass, double score) GetPlottingTuple(IsotopicEnvelope envelope)
+    {
+        double diff = ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex);
+        double mostAbundantMz = (envelope.MonoisotopicMass + diff);
+        // retrieve the intensity corresponding to the mostabundant isotopic mass
+        double[] arrayOfMzVals = envelope.Peaks
+            .OrderBy(i => i.mz)
+            .Select(i => i.mz)
+            .ToArray();
+
+        int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals, mostAbundantMz);
+
+        indexOfMostAbundant = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
+        indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count - 1 : indexOfMostAbundant;
+        indexOfMostAbundant = indexOfMostAbundant == 0 ? indexOfMostAbundant : indexOfMostAbundant - 1; 
+        // the OrderBy shouldn't be repeated, but I'm tired and about to go home. 
+        var maxPairs = envelope.Peaks.OrderBy(i => i.mz).ToArray()[indexOfMostAbundant];
+
+        int charge = envelope.Charge;
+        double mz = maxPairs.mz.ToMz(envelope.Charge); 
+
+        return (mz, maxPairs.intensity, charge, envelope.MonoisotopicMass, envelope.Score); 
     }
 
     public Dictionary<double,List<IsotopicEnvelope>> GetEnvelopes(IEnumerable<IsotopicEnvelope> envelopes)
