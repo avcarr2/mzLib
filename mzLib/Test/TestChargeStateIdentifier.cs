@@ -111,9 +111,11 @@ public class TestChargeStateIdentifier
 
         char[] separators = new char[] { '(', ')', ','}; 
         Console.WriteLine("mz\tintensity\tchargeState\tmonoMass\tscore");
-        List<(double, double, int, double, double)> plottingTuples = new List<(double, double, int, double, double)>();
+        List<(double, double, int, double, double, double)> plottingTuples = new List<(double, double, int, double, double, double)>();
 
-        chargeState.ForEach(j =>
+        chargeState
+            .Where(j => j.Value.Count() > 2)
+            .ForEach(j =>
         {
             foreach (var envelope in j.Value)
             {
@@ -310,10 +312,9 @@ public class TestChargeStateIdentifier
         return outputList;
     }
 
-    public (double xVal, double yVal, int chargeState, double monoMass, double score) GetPlottingTuple(IsotopicEnvelope envelope)
+    public (double xVal, double yVal, int chargeState, double monoMass, double score, double diff) GetPlottingTuple(IsotopicEnvelope envelope)
     {
-        double diff = ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex);
-        double mostAbundantMz = (envelope.MonoisotopicMass + diff);
+        double mostAbundantMz = envelope.MonoisotopicMass + ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex); 
         // retrieve the intensity corresponding to the mostabundant isotopic mass
         double[] arrayOfMzVals = envelope.Peaks
             .OrderBy(i => i.mz)
@@ -322,16 +323,22 @@ public class TestChargeStateIdentifier
 
         int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals, mostAbundantMz);
 
-        indexOfMostAbundant = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
-        indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count - 1 : indexOfMostAbundant;
-        indexOfMostAbundant = indexOfMostAbundant == 0 ? indexOfMostAbundant : indexOfMostAbundant - 1; 
+        int indexOfMostAbundant2 = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
+        int indexOfMostAbundant3 = indexOfMostAbundant2 >= envelope.Peaks.Count ? envelope.Peaks.Count - 1 : indexOfMostAbundant2;
+        // need to compare to see which index the x value is closer to. false if need to decrement. 
+        if (indexOfMostAbundant3 > 0)
+        {
+            bool roundUp = arrayOfMzVals[indexOfMostAbundant3] - mostAbundantMz < mostAbundantMz - arrayOfMzVals[indexOfMostAbundant3 - 1];
+            indexOfMostAbundant3 = roundUp ? indexOfMostAbundant3 : indexOfMostAbundant3 - 1;
+        }
+        
         // the OrderBy shouldn't be repeated, but I'm tired and about to go home. 
-        var maxPairs = envelope.Peaks.OrderBy(i => i.mz).ToArray()[indexOfMostAbundant];
+        var maxPairs = envelope.Peaks.OrderBy(i => i.mz).ToArray()[indexOfMostAbundant3];
 
         int charge = envelope.Charge;
         double mz = maxPairs.mz.ToMz(envelope.Charge); 
 
-        return (mz, maxPairs.intensity, charge, envelope.MonoisotopicMass, envelope.Score); 
+        return (maxPairs.mz.ToMz(envelope.Charge), maxPairs.intensity, charge, envelope.MonoisotopicMass, envelope.Score, ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex)); 
     }
 
     public Dictionary<double,List<IsotopicEnvelope>> GetEnvelopes(IEnumerable<IsotopicEnvelope> envelopes)

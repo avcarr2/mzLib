@@ -83,12 +83,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             int charge = (int)Math.Round(match.ChargesOfMatchingPeaks[i]);
             if (range.Contains(match.MatchingMzPeaks[i]))
             {
-                double[] neutralXArray = scan.XArray.Select(i => i.ToMass(charge)).ToArray();
+                double[] neutralXArray = scan.XArray.Select(j => j.ToMass(charge)).ToArray();
 
                 MzSpectrum neutralMassSpectrum = new(neutralXArray, scan.YArray, true);
 
-                double maxMassToTake = allMasses[match.MassIndex].Max() - 1;
-                double minMassToTake = allMasses[match.MassIndex].Min() + 1;
+                double maxMassToTake = allMasses[match.MassIndex].Max();
+                double minMassToTake = allMasses[match.MassIndex].Min();
 
                 MzRange newRange = new(minMassToTake, maxMassToTake);
 
@@ -296,16 +296,20 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         }
         return listEnvelopes;
     }
+
+    public static double GetTheoreticalMostIntenseMassWithDiff(int massIndex, double diff)
+    {
+        return allMasses[massIndex][0] + diff; 
+    }
     /// <summary>
     /// Performs spectral similarity calculation between the theoretical isotopic envelopes and the experimental data.
     /// </summary>
     /// <param name="envelope"></param>
     private void RescoreIsotopicEnvelope(IsotopicEnvelope envelope)
     {
-        if (envelope == null) return; 
+        if (envelope == null) return;
 
         double diff = envelope.MonoisotopicMass + diffToMonoisotopic[envelope.MassIndex] - allMasses[envelope.MassIndex][0]; 
-
         double[] theoreticalMzs = allMasses[envelope.MassIndex].Select(i => i + diff).ToArray();
         double maxIntensity = allIntensities[envelope.MassIndex].Max(); 
         double[] theoreticalIntensities = allIntensities[envelope.MassIndex]
@@ -388,11 +392,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             // more error prone. 
 
             envelope.MonoisotopicMass = monoGuesses.Median();
-            // ensures that the lowest mass returned is the monoisotopic mass. 
-            //if (envelope.MonoisotopicMass < allMasses[envelope.MassIndex][0] - diffToMonoisotopic[envelope.MassIndex])
-            //{
-            //    continue;
-            //}
+
             envelope.ScoreByIntensityExplained(scan);
             if(envelope != null) yield return envelope;
         }
