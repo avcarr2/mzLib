@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,33 +11,40 @@ using MathNet.Numerics.Statistics;
 using MzLibUtil;
 using NUnit.Framework;
 using OxyPlot.Wpf;
+using Plotly.NET;
 using Proteomics.AminoAcidPolymer;
 using SimulatedData;
 using UsefulProteomicsDatabases;
 // remove plotly before final merge 
 using Plotly.NET.CSharp;
+using Chart = Plotly.NET.CSharp.Chart;
 
 namespace Test
 {
 	public class TestSimulatedChargeStateEnvelope
 	{
 		// phospholamban sequence, UniProt entry P26678
-		private const string pln = "MEKVQYLTRSAIRRASTIEMPQQARQKLQNLFINFCLILICLLLICIIVMLL";
-		private Chemistry.IsotopicDistribution _distribution;
+		private const string actin = "MDDDIAALVVDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHQGVMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVTNWDDMEKIWHHTFYNELRVAPEEHPVLLTEAPLNPKANREKMTQIMFETFNTPAMYVAIQAVLSLYASGRTTGIVMDSGDGVTHTVPIYEGYALPHAILRLDLAGRDLTDYLMKILTERGYSFTTTAEREIVRDIKEKLCYVALDFEQEMATAASSSSLEKSYELPDGQVITIGNERFRCPEALFQPSFLGMESCGIHETTFNSIMKCDVDIRKDLYANTVLSGGTTMYPGIADRMQKEITALAPSTMKIKIIAPPERKYSVWIGGSILASLSTFQQMWISKQEYDESGPSIVHRKCF";
+
+		private const string cytochromeC =
+			"MGDVEKGKKIFIMKCSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAANKNKGIIWGEDTLMEYLENPKKYIPGTKMIFVGIKKKEERADLIAYLKKATNE"; 
+		private Chemistry.IsotopicDistribution _distribution1;
+		private IsotopicDistribution _distribution2; 
 		private SimulatedChargeStateEnvelope Cse;
 		static double mzLow = 500d;
 		static double mzHigh = 2000d;
 		static double stepSize = 0.001;
 		static int length = (int)((mzHigh - mzLow) / stepSize);
-		static int chargeStateLow = 4;
-		static int chargeStateHigh = 10;
+		static int chargeStateLow = 5;
+		static int chargeStateHigh = 100;
 		static (double, double) chargeStateDistr = (-0.65, 0.15);
 
 		[OneTimeSetUp]
 		public void OneTimeSetup()
 		{
 			UsefulProteomicsDatabases.Loaders.LoadElements(); ; 
-			_distribution = IsotopicDistribution.GetDistribution(new Peptide(pln).GetChemicalFormula());
+			_distribution1 = IsotopicDistribution.GetDistribution(new Peptide(actin).GetChemicalFormula());
+			_distribution2 = IsotopicDistribution.GetDistribution(new Peptide(cytochromeC).GetChemicalFormula());
 		}
 
 		[Test]
@@ -49,13 +57,13 @@ namespace Test
 			{
 				new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length,
 					chargeStateHigh, chargeStateLow, 
-					_distribution, chargeStateDistr);
+					_distribution1, chargeStateDistr);
 			}); 
 			Assert.Throws<MzLibException>(() =>
 			{
 				new SimulatedChargeStateEnvelope(mzHigh, mzLow, stepSize, length,
 					chargeStateLow, chargeStateHigh, 
-					_distribution, chargeStateDistr);
+					_distribution1, chargeStateDistr);
 			});
 		}
 
@@ -64,7 +72,7 @@ namespace Test
 		{
 			Cse = new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length,
 				chargeStateLow, chargeStateHigh,
-				_distribution, chargeStateDistr);
+				_distribution1, chargeStateDistr);
 			//Chart.Line<double, double, string>(Cse.Xarray, Cse.Yarray).Show();
 			// expected values
 			List<(double, double)> expectedList = new List<(double, double)>
@@ -92,7 +100,7 @@ namespace Test
 		{
 			Cse = new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length,
 				chargeStateLow, chargeStateHigh,
-				_distribution, chargeStateDistr);
+				_distribution1, chargeStateDistr);
 			// hf noise distribution
 			Normal hfNoiseDistr = new(0.1, 0.01); 
 			
@@ -110,7 +118,7 @@ namespace Test
 				0.5, 1, 0.01, 0.2);
 			Cse = new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length,
 				chargeStateLow, chargeStateHigh,
-				_distribution, chargeStateDistr);
+				_distribution1, chargeStateDistr);
 
 			double[] originalYarrayCopy = new double[Cse.Yarray.Length];
 			Buffer.BlockCopy(Cse.Yarray, 0, 
@@ -131,9 +139,38 @@ namespace Test
 		}
 
 		[Test]
-		public void TestMrsNoiseDistribution()
+		public void TestMultipleOverlappingProteoforms()
 		{
+			var cseCytochromeC = new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length, 5, 25,
+				_distribution2, chargeStateDistr);
+			var cseActin = new SimulatedChargeStateEnvelope(mzLow, mzHigh, stepSize, length, 25, 60, _distribution1,
+				chargeStateDistr);
 
+			//var cytoPlot = Chart.Line<double, double, string>(cseCytochromeC.Xarray, cseCytochromeC.Yarray,
+			//	Name: "UniProt Accession: P60709"); 
+			//var actinPlot = Chart.Line<double, double, string>(cseActin.Xarray, cseActin.Yarray, Name:"UniProt Accession: P60709");
+
+			//var combined = new List<Plotly.NET.GenericChart.GenericChart>()
+			//{
+			//	cytoPlot,
+			//	actinPlot
+			//};  
+
+			//Plotly.NET.GenericChartExtensions.Show(GenericChart.combine(combined));
+
+			using var cytoWriter = new StreamWriter("cytoSimData.txt");
+			using var actinWriter = new StreamWriter("actinSimulated.txt");
+
+			for (int i = 0; i < cseCytochromeC.Xarray.Length; i++)
+			{
+				cytoWriter.WriteLine(cseCytochromeC.Xarray[i] + "\t" + cseCytochromeC.Yarray[i]);
+			}
+			cytoWriter.Flush();
+			for (int i = 0; i < cseActin.Xarray.Length; i++)
+			{
+				actinWriter.WriteLine(cseActin.Xarray[i] + "\t" + cseActin.Yarray[i]);
+			}
+			actinWriter.Flush();
 		}
 
 		[Test]
