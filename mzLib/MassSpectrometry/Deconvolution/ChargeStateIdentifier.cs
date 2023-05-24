@@ -24,7 +24,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        return DeconvolutePrivateFast(spectrumToDeconvolute, range, 0.75);
+        return DeconvolutePrivateFast(spectrumToDeconvolute, range, DeconvolutionParams.EnvelopeThreshold);
     }
     /// <summary>
     /// Provides access to the diff to monoisotopic mass value stored in the deconvolution algorithm abstract class.

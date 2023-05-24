@@ -11,10 +11,11 @@ namespace MassSpectrometry
         public int MinCharge { get; }
         public int MaxCharge { get; }
         public double PeakMatchPpmTolerance { get; }
+        public double EnvelopeThreshold { get; }
         public double MinimumMassDa { get; set; }
 
         public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm,
-            double minimumMass = 9500) : base()
+            double minimumMass = 9500, double envelopeThreshold = 0.6) : base()
         {
             MinCharge = minCharge;
             MaxCharge = maxCharge;

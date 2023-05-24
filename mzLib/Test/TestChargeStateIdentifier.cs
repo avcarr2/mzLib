@@ -101,7 +101,7 @@ public class TestChargeStateIdentifier
         ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5); 
         ChargeStateIdentifier csi = new(deconParams);
 
-        var results = csi.Deconvolute(scan, new MzRange(800, 900)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(600, 2000)).ToList();
         var chargeState = results.ToList()
             .ObserveAdjacentChargeStates()
             .OrderByDescending(i => i.Key)
