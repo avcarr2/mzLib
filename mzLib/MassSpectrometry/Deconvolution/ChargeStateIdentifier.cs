@@ -17,6 +17,7 @@ using System.Threading;
 using Accord.Collections;
 using System.Threading.Tasks.Dataflow;
 using Easy.Common.Interfaces;
+using System.Text.RegularExpressions;
 
 
 namespace MassSpectrometry;
@@ -33,8 +34,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         //return DeconvolutePrivateFast(spectrumToDeconvolute, range, DeconvolutionParams.EnvelopeThreshold);
         return DeconvoluteDataFlow(spectrumToDeconvolute, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
             spectrumToDeconvolute.FirstX.Value, spectrumToDeconvolute.LastX.Value,
-            DeconvolutionParams.PeakMatchPpmTolerance, range)
-            .OrderByDescending(i => i.Score); 
+            DeconvolutionParams.PeakMatchPpmTolerance, range, minimumScore: DeconvolutionParams.EnvelopeThreshold,
+            maxThreads: DeconvolutionParams.MaxThreads).ToList(); 
     }
     /// <summary>
     /// Provides access to the diff to monoisotopic mass value stored in the deconvolution algorithm abstract class.
@@ -55,7 +56,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     public IEnumerable<IsotopicEnvelope> DeconvoluteDataFlow(MzSpectrum scan, int minCharge, int maxCharge, double minMz, double maxMz,
         double ppmTolerance, MzRange deconRange, int maxThreads = 19, double minimumScore = 0.6)
     {
-        double minimumIntensity = scan.YofPeakWithHighestY.GetValueOrDefault() * 0.005; 
+        double minimumIntensity = scan.YofPeakWithHighestY.GetValueOrDefault() * 0.01; 
 
         (int Index, double mz, double intensity)[] filteredPairs =
             (from i in Enumerable.Range(0, scan.XArray.Length)
@@ -67,53 +68,46 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         var chargeStateLadderBlock = new TransformBlock<int, IEnumerable<ChargeStateLadder>>(value =>
             CreateChargeStateLadders(value, scan.XArray,
-             minCharge, maxCharge,minMz, maxMz), new ExecutionDataflowBlockOptions(){ MaxDegreeOfParallelism = maxThreads });
+             minCharge, maxCharge,minMz, maxMz), new ExecutionDataflowBlockOptions(){ EnsureOrdered = true, SingleProducerConstrained = true});
 
         var transformToIndexList =
             new TransformManyBlock<IEnumerable<ChargeStateLadder>, (ChargeStateLadder, List<int>)>(
                 ladderList => from ladder in ladderList.AsParallel()
                               select (ladder, MatchChargeStateLadder(scan, ladder, ppmTolerance)), 
-                new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxThreads });
+                new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 8, EnsureOrdered = true, SingleProducerConstrained = true });
 
         var transformToLadderMatch =
             new TransformBlock<(ChargeStateLadder, List<int>), ChargeStateLadderMatch>(
                 indexList =>
                 {
-                    return TransformToChargeStateLadderMatch(indexList.Item2,
+                    var match = TransformToChargeStateLadderMatch(indexList.Item2,
                         scan, indexList.Item1);
-                }, new ExecutionDataflowBlockOptions() {  });
-
-        var rescoreChargeStateBlock = new TransformBlock<ChargeStateLadderMatch, ChargeStateLadderMatch?>(match =>
-        {
-            bool success = ScoreChargeStateLadderMatch(match, scan);
-            if (!success) return null;
-            return match;
-        }, new ExecutionDataflowBlockOptions() { });
+                    bool success = ScoreChargeStateLadderMatch(match, scan);
+                    
+                    if (!success) return null;
+                    
+                    return match;
+                }, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 4, EnsureOrdered = true, SingleProducerConstrained = true});
 
         var findIsotopicEnvelopesBlock = new TransformBlock<ChargeStateLadderMatch?, IEnumerable<IsotopicEnvelope>>(match =>
         {
             if (match != null)
             {
-                var envelopes = FindIsotopicEnvelopes(match, scan, deconRange).ToList();
+                var envelopes = FindIsotopicEnvelopes(match, scan, deconRange, minimumScore).ToList();
                 if (envelopes.Any())
                 {
-                    foreach (var e in envelopes)
-                    {
-                        RescoreIsotopicEnvelope(e);
-                    }
-                    return envelopes.Where(i => i.Score > minimumScore);
+                    return envelopes;
                 }
             }
             return null;
-        }, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = maxThreads});
+        }, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 7, EnsureOrdered = true, SingleProducerConstrained = true});
 
 
-        var linkOptions = new DataflowLinkOptions() { PropagateCompletion = true };
+        var linkOptions = new DataflowLinkOptions() { PropagateCompletion = true};
 
         chargeStateLadderBlock.LinkTo(transformToIndexList, linkOptions);
         transformToIndexList.LinkTo(transformToLadderMatch, linkOptions); // match => match.Item1 != null && match.Item2 != null
-        transformToLadderMatch.LinkTo(rescoreChargeStateBlock, linkOptions);
-        rescoreChargeStateBlock.LinkTo(findIsotopicEnvelopesBlock, linkOptions);
+        transformToLadderMatch.LinkTo(findIsotopicEnvelopesBlock, linkOptions);
 
 
         foreach(var pair in filteredPairs)
@@ -132,10 +126,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             {
                 foreach (var e in envelope)
                 {
-                    yield return e;
+                    if (e.Score > minimumScore)
+                    {
+                        yield return e;
+                    }
                 }
             }
-
         }
     }
 
@@ -147,7 +143,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     /// <param name="scan"></param>
     /// <param name="range"></param>
     /// <returns></returns>
-    internal IEnumerable<IsotopicEnvelope> FindIsotopicEnvelopes(ChargeStateLadderMatch match, MzSpectrum scan, MzRange range)
+    internal IEnumerable<IsotopicEnvelope> FindIsotopicEnvelopes(ChargeStateLadderMatch match, MzSpectrum scan, MzRange range, double minimumScore)
     {
         this.spectrum = scan;
 
@@ -167,7 +163,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                 MzRange newRange = new(minMassToTake, maxMassToTake);
 
                 var envelope = FillIsotopicEnvelopeByBounds(match, neutralMassSpectrum, newRange, charge);
-                if (envelope != null) yield return envelope; 
+                if (envelope != null)
+                {
+                    RescoreIsotopicEnvelope(envelope);
+                    if(envelope.Score >= minimumScore)
+                        yield return envelope;
+                } 
             }
         }
     }
@@ -278,12 +279,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     internal static List<int> MatchChargeStateLadder(MzSpectrum scan, ChargeStateLadder ladder, 
         double ppmMatchTolerance)
     {
-        List<int> output = new(); 
-        for (int j = 0; j < ladder.MzVals.Length; j++)
+        ConcurrentBag<int> output = new();
+        Parallel.ForEach(ladder.MzVals, (t) =>
         {
-            double tolerance = ppmMatchTolerance / 1e6 * ladder.MzVals[j];
-            double upperTol = ladder.MzVals[j] + tolerance;
-            double lowerTol = ladder.MzVals[j] - tolerance;
+            double tolerance = ppmMatchTolerance / 1e6 * t;
+            double upperTol = t + tolerance;
+            double lowerTol = t - tolerance;
             // get indices of the range of double values that contain the values in scan.Xarray 
             int upperIndex = Array.BinarySearch(scan.XArray, upperTol);
             int lowerIndex = Array.BinarySearch(scan.XArray, lowerTol);
@@ -298,12 +299,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             {
                 if (scan.XArray[k] >= lowerTol && scan.XArray[k] <= upperTol)
                 {
-                    output.Add(k); 
+                    output.Add(k);
                 }
             }
-        }
+        }); 
 
-        return output;
+        return output.ToList();
     }
     /// <summary>
     /// Generates a ChargeStateLadderMatch object from a charge state ladder and the list of indices that map to the original data. 

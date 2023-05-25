@@ -18,7 +18,7 @@ public class TestChargeStateIdentifier
     [Test]
     public void TestCreateChargeStateLadders()
     {
-        ChargeStateDeconvolutionParams deconParams = new(1, 5, 5);
+        ChargeStateDeconvolutionParams deconParams = new(1, 5, 5, maxThreads:12);
         ChargeStateIdentifier csi = new(deconParams);
         double[] testMzVals = new[] { 1000.0 }; 
 
@@ -92,19 +92,20 @@ public class TestChargeStateIdentifier
 
     [Test]
     [TestCase(2,60)]
+    [Repeat(5)]
     public void TestDeconvolution(int minCharge, int maxCharge)
     {
         string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
             "chargeStateDeconTest3raw.raw");
-        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.01);
+        FilteringParams filteringParams = new FilteringParams();
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
 
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5); 
+        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5, maxThreads:19); 
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new(); 
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(600, 608)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(600, 640)).ToList();
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
 
@@ -177,7 +178,7 @@ public class TestChargeStateIdentifier
         MsDataFile file = MsDataFileReader.GetDataFile(path); 
         file.InitiateDynamicConnection();
         MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(116);
-        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1);
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1, maxThreads: 12);
         ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
         var results = decon.Deconvolute(scan.MassSpectrum, new MzRange(900d, 1000d))
             .ToList();
