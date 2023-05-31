@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Accord;
 using Chemistry;
 using Easy.Common.Extensions;
 using Easy.Common.Interfaces;
@@ -11,6 +12,8 @@ using MzLibUtil;
 using Readers;
 using NUnit.Framework; 
 using MassSpectrometry;
+using OpenMcdf.Extensions;
+using System.Text.RegularExpressions;
 
 
 namespace Test;
@@ -331,7 +334,7 @@ public class TestChargeStateIdentifier
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(600,2500)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(800,900)).ToList();
         watch.Stop();
 
         WriteIsotopicEnvelopesToPlottingPoints(results);
@@ -411,5 +414,114 @@ public class TestChargeStateIdentifier
         }
         return resultsDict;
     }
+
+    [Test]
+    public void TestNonUniqueChargeStateLadders()
+    {
+        double[] testMzAxis = new[]
+            { 1001.007,953.387952380952,910.097909090909,870.572217391304,834.340333333333 };
+        double[] testIntAxis = new[] {
+            1000d, 2500d, 3500d, 2500d, 1000d };
+        MzSpectrum testSpectra = new MzSpectrum(testMzAxis, testIntAxis, true);
+        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        List<List<ChargeStateLadder>> laddersList = new(); 
+        for (int i = 0; i < testMzAxis.Length; i++)
+        {
+            var tempList = ChargeStateIdentifier.CreateChargeStateLadders(i, testMzAxis, deconParams.MinCharge, deconParams.MaxCharge,
+                500, 2000).ToList(); 
+            laddersList.Add(tempList);
+        }
+
+        var masses = laddersList.Select(i => i.Select(j => j.Mass));
+        foreach (var mass in masses.GroupBy(i => i))
+        {
+            if (mass.Count() > 1)
+            {
+                Console.WriteLine(mass);
+            }
+        }
+    }
+
+    [Test]
+    public void TestPreFiltering()
+    {
+        double[] testMzAxis = new[]
+            { 1001.007,953.387952380952,910.097909090909,870.572217391304,834.340333333333 };
+
+        int minCharge = 5;
+        int maxCharge = 30;
+        double minMass = 10000;
+        double maxMass = 30000; 
+        double ppmMatchTolerance = 4.0;
+        double delta = 0.5; 
+
+        List<(int, double)> massesList = new();
+
+        double[] masses = new double[(int)((maxMass - minMass) / delta)];
+        int[] counts = new int[masses.Length];
+
+        for (int i = 0; i < masses.Length; i++)
+        {
+            masses[i] = minMass + delta * i;
+        }
+
+        List<double> neutralMasses = new(); 
+
+        for (int i = maxCharge; i >= minCharge; i--)
+        {
+            for (int j = 0; j < testMzAxis.Length; j++)
+            {
+                var testMass = testMzAxis[j].ToMass(i);
+                if (testMass > maxMass || testMass < minMass)
+                {
+                    continue; 
+                }
+
+                int index = GetBucket(masses, testMass);
+                counts[index]++;
+
+                if (counts[index] > 1)
+                {
+                    if (!neutralMasses.Any(d => Math.Abs(testMass - d) * 1e6 / testMass <= ppmMatchTolerance))
+                    {
+                        neutralMasses.Add(testMass);
+                    }
+                }
+            }
+        }
+        
+
+
+    }
+
+    private static int GetBucket(double[] array, double value)
+    {
+        int index = Array.BinarySearch(array, value);
+        if (index < 0)
+        {
+            index = ~index;
+        }
+
+        if (index >= array.Length)
+        {
+            index = array.Length - 1;
+        }
+
+        if (index != 0 && array[index] - value >
+            value - array[index - 1])
+        {
+            index--;
+        }
+        return index;
+    }
+
+    private static bool DoubleAreNearlyEqual(double d1, double d2, double ppmMatchTolerance)
+    {
+        return Math.Abs(d1 - d2) / 1e6 * d1 < ppmMatchTolerance;
+    }
+
+
 }
 
