@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using Chemistry;
 using Easy.Common.Extensions;
+using Easy.Common.Interfaces;
 using MzLibUtil;
 using Readers;
 using NUnit.Framework; 
@@ -171,23 +172,23 @@ public class TestChargeStateIdentifier
 
     }
 
-    [Test]
-    public void TestGroundTruthDataSet()
-    {
-        string path = Path.Combine(@"C:\Users\Austin\Documents\Projects\MsDataSimulatorOutput\train.mzML");
-        MsDataFile file = MsDataFileReader.GetDataFile(path); 
-        file.InitiateDynamicConnection();
-        MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(116);
-        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1, maxThreads: 12);
-        ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
-        var results = decon.Deconvolute(scan.MassSpectrum, new MzRange(900d, 1000d))
-            .ToList();
-        var chargeStateEnvelopes = results
-            .ObserveAdjacentChargeStates()
-            .OrderByDescending(i => i.Key);
+    //[Test]
+    //public void TestGroundTruthDataSet()
+    //{
+    //    string path = Path.Combine(@"C:\Users\Austin\Documents\Projects\MsDataSimulatorOutput\train.mzML");
+    //    MsDataFile file = MsDataFileReader.GetDataFile(path); 
+    //    file.InitiateDynamicConnection();
+    //    MsDataScan scan = file.GetOneBasedScanFromDynamicConnection(116);
+    //    ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 120, 1, maxThreads: 12);
+    //    ChargeStateIdentifier decon = new ChargeStateIdentifier(deconParams);
+    //    var results = decon.Deconvolute(scan.MassSpectrum, new MzRange(900d, 1000d))
+    //        .ToList();
+    //    var chargeStateEnvelopes = results
+    //        .ObserveAdjacentChargeStates()
+    //        .OrderByDescending(i => i.Key);
         
-        // you could score by euclidean distance and then cluster the peaks together i think. 
-    }
+    //    // you could score by euclidean distance and then cluster the peaks together i think. 
+    //}
 
     // [Test]
     // public void TestDeconvolutionBigThings()
@@ -319,6 +320,49 @@ public class TestChargeStateIdentifier
         return outputList;
     }
 
+    [Test]
+    public void Figure1TestCaseEasilyResolved()
+    {
+        string path = @"D:\MSV000084001_StandardProteins\190226_FIlg_3_FD_500ng-averaged.raw";
+        FilteringParams filteringParams = new FilteringParams();
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
+        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        Stopwatch watch = new();
+        watch.Start();
+        var results = csi.Deconvolute(scan, new MzRange(600,2500)).ToList();
+        watch.Stop();
+
+        WriteIsotopicEnvelopesToPlottingPoints(results);
+
+    }
+
+    public void WriteIsotopicEnvelopesToPlottingPoints(IEnumerable<IsotopicEnvelope> envelopeCollection, string extension = ".tsv")
+    {
+        if (extension == ".tsv")
+        {
+            using var writer = new StreamWriter("plottingPoints.tsv");
+            writer.WriteLine("mz\tintensity\tchargeState\tmonoMass\tscore\tdiff");
+            foreach (var envelope in envelopeCollection)
+            {
+                var info = GetPlottingTuple(envelope); 
+                writer.WriteLine(string.Join("\t", info.xVal, info.yVal, info.chargeState, info.monoMass, info.score, info.diff));
+            }
+
+            writer.Flush(); 
+        }
+
+        if (extension == "")
+        {
+            Console.WriteLine("mz\tintensity\tchargeState\tmonoMass\tscore\tdiff");
+            foreach (var envelope in envelopeCollection)
+            {
+                Console.WriteLine(string.Join("\t", GetPlottingTuple(envelope)));
+            }
+        }
+    }
+
     public (double xVal, double yVal, int chargeState, double monoMass, double score, double diff) GetPlottingTuple(IsotopicEnvelope envelope)
     {
         double mostAbundantMz = envelope.MonoisotopicMass + ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex); 
@@ -369,16 +413,3 @@ public class TestChargeStateIdentifier
     }
 }
 
-//public static class ListIsotopicEnvelopeExtensions
-//{
-//    public static IEnumerable<IsotopicEnvelope> CleanUpEnvelopes(this IEnumerable<IsotopicEnvelope> envelopes)
-//    {
-//        foreach (var envelope in envelopes)
-//        {
-//            if (envelope.Score > 0)
-//            {
-//                yield return envelope;
-//            }
-//        }
-//    }
-//}
