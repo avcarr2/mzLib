@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,6 +15,8 @@ using NUnit.Framework;
 using MassSpectrometry;
 using OpenMcdf.Extensions;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Documents;
 
 
 namespace Test;
@@ -324,21 +327,54 @@ public class TestChargeStateIdentifier
     }
 
     [Test]
+    [Repeat(1)]
     public void Figure1TestCaseEasilyResolved()
     {
         string path = @"D:\MSV000084001_StandardProteins\190226_FIlg_3_FD_500ng-averaged.raw";
         FilteringParams filteringParams = new FilteringParams();
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
-        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15);
+        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 1, envelopeThreshold:0.6);
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
         var results = csi.Deconvolute(scan, new MzRange(800,900)).ToList();
         watch.Stop();
-
+        Console.WriteLine(watch.ElapsedMilliseconds);
         WriteIsotopicEnvelopesToPlottingPoints(results);
+    }
 
+    [Test]
+    public void DoubleEqualityComparerTest()
+    {
+        var double1 = 18793.58261;
+        var double2 = 18793.58329; 
+
+        var test = Math.Round(double1,2) == Math.Round(double2,2);
+        Assert.True(test);
+
+        DoubleEqualityComparer comparer = new();
+        Assert.True(comparer.Equals(double1, double2)); 
+    }
+
+    [Test]
+    public void TestPreFilterMzVals()
+    {
+        string path = @"D:\220220AveragedDatasets\LVS Jurkat\02-18-20_jurkat_td_rep2_fract9.raw";
+        var scans = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList();
+
+        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15, envelopeThreshold: 0.6);
+        ChargeStateIdentifier csi = new(deconParams);
+        ConcurrentBag<int> countsOfValues = new();
+        Parallel.For(0, 1, i =>
+        {
+            Stopwatch watch = new(); 
+            watch.Start();
+            var output = ChargeStateIdentifier.PreFilterMzVals(scans[i].MassSpectrum.XArray,
+                5, 60, 10000, 60000, 5d);
+            watch.Stop();
+            Console.WriteLine("{0},{1},{2}", scans[i].MassSpectrum.XArray.Length, output.Count(), watch.ElapsedMilliseconds);
+        });
     }
 
     public void WriteIsotopicEnvelopesToPlottingPoints(IEnumerable<IsotopicEnvelope> envelopeCollection, string extension = ".tsv")

@@ -23,6 +23,7 @@ namespace MassSpectrometry
             PeakMatchPpmTolerance = peakMatchTolerancePpm;
             MinimumMassDa = minimumMass;
             MaxThreads = maxThreads;
+            EnvelopeThreshold = envelopeThreshold;
         }
     }
 }
