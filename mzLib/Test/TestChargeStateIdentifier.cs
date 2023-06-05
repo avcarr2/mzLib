@@ -114,67 +114,6 @@ public class TestChargeStateIdentifier
         var results = csi.Deconvolute(scan, new MzRange(600, 640)).ToList();
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
-
-        //var chargeState = results.ToList()
-        //    .ObserveAdjacentChargeStates()
-        //    .OrderByDescending(i => i.Key)
-        //    //.DistinctBy(i => i.MonoisotopicMass)
-        //    ;
-
-
-        //char[] separators = new char[] { '(', ')', ','}; 
-        //Console.WriteLine("mz\tintensity\tchargeState\tmonoMass\tscore");
-        //List<(double, double, int, double, double, double)> plottingTuples = new List<(double, double, int, double, double, double)>();
-
-        //chargeState
-        //    .Where(j => j.Value.Count() > 2)
-        //    .ForEach(j =>
-        //{
-        //    foreach (var envelope in j.Value)
-        //    {
-        //        plottingTuples.Add(GetPlottingTuple(envelope));
-        //        //Console.WriteLine(string.Join("\t",GetPlottingTuple(envelope)
-        //        //    .ToString()
-        //        //    .Split(separators))); 
-        //    }
-
-        //    //Console.WriteLine("{0}\t{1}\t{2}\t{3}\t{4}",
-        //    //    j.Key,
-        //    //    string.Join(";", j.Value.Select(i => i.Charge)),
-        //    //    string.Join(",", string.Join(",", j.Value.Select(i => i.Score))),
-        //    //    string.Join(",", j.Value.Select(i =>
-        //    //        (i.MonoisotopicMass + ChargeStateIdentifier.GetDiffToMonoisotopic(i.MassIndex)).ToMz(i.Charge))),
-        //    //    string.Join(",", j.Value.Select(i => i.)));
-        //});
-        //plottingTuples.OrderByDescending(i => i.Item1)
-        //    .ForEach(i =>
-        //    {
-        //        Console.WriteLine(string.Join("\t", i.ToString().Split(separators))); 
-        //    });
-
-        //// get the charge states of the isotopic envelopes
-        ////var dictChargeStateEnvelopes = GetEnvelopes(results)
-        ////    // possible criteria for removing: 
-        ////    // non-consecutive charge states; sum of peaks explain less than a certain threshold; 
-        ////    // peaks have less
-        ////    .OrderByDescending(i => i.Value.Sum(j => j.Score))
-        ////    .Take(30)
-        ////    .ToDictionary(i => i.Key, i => i.Value); 
-        ////// to plot: 
-        //// x values: mz of most intense peak in isotopic envelopes 
-        //// y values: most intense peak in isotopic envelope 
-        //// charge state 
-        //// monoisotopic mass 
-
-        //// how do you figure out where to divide the line bewteen real and harmonic? 
-
-        //// plot these three things on top of the original spectrum 
-        ////var plottingPoints = GetMzChargeStateIntensityMonoisotopicMass(dictChargeStateEnvelopes);
-        ////foreach (var point in plottingPoints)
-        ////{
-        ////    Console.WriteLine("{0},{1},{2},{3}", point.xVal, point.yVal, point.chargeState, point.monoisotopicMass);
-        ////}
-
     }
 
     //[Test]
