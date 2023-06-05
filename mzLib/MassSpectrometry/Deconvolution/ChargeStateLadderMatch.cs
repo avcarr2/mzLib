@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace MassSpectrometry
 {
-    internal class ChargeStateLadderMatch
+    public class ChargeStateLadderMatch
     {
         public ChargeStateLadder TheoreticalLadder { get; set; }
         public List<double> MatchingMzPeaks { get; set; }

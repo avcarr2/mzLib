@@ -54,7 +54,7 @@ namespace Development.Deconvolution
             Deconvoluter classicBottomUpDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
                 new ClassicDeconvolutionParameters(5, 12, 4, 3));
             Deconvoluter deconvolveByChargeState = new Deconvoluter(DeconvolutionType.AustinConv,
-                new ChargeStateDeconvolutionParams(5, 50, 5)); 
+                new ChargeStateDeconvolutionParams(5, 50, 5, maxThreads:10)); 
 
             // Add Individual peak test cases
             

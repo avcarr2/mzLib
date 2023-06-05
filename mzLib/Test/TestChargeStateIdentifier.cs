@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Accord;
 using Chemistry;
 using Easy.Common.Extensions;
 using Easy.Common.Interfaces;
@@ -13,10 +12,10 @@ using MzLibUtil;
 using Readers;
 using NUnit.Framework; 
 using MassSpectrometry;
-using OpenMcdf.Extensions;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Documents;
+using Accord;
 
 
 namespace Test;
@@ -333,15 +332,39 @@ public class TestChargeStateIdentifier
         string path = @"D:\MSV000084001_StandardProteins\190226_FIlg_3_FD_500ng-averaged.raw";
         FilteringParams filteringParams = new FilteringParams();
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
-        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 1, envelopeThreshold:0.6);
+        ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 1, envelopeThreshold:0.6);
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(800,900)).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(895,905)).OrderByDescending(i => i.Score).ToList();
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
-        WriteIsotopicEnvelopesToPlottingPoints(results);
+        //WriteIsotopicEnvelopesToPlottingPoints(results);
+    }
+
+    [Test]
+    public void TestTimingWholeFile()
+    {
+        string path = @"D:\220220AveragedDatasets\LVS Jurkat\02-18-20_jurkat_td_rep2_fract9.raw";
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.1, applyTrimmingToMs1:true, applyTrimmingToMsMs:false);
+
+        var scans = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().Skip(1200).Take(100).ToList();
+        ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 15, envelopeThreshold: 0.6);
+        ChargeStateIdentifier csi = new(deconParams);
+        ConcurrentBag<double> times = new(); 
+        Parallel.ForEach(scans, (scan) =>
+        {
+            if (scan.MsnOrder == 1)
+            {
+                Stopwatch watch = new();
+                watch.Start();
+                var deconResults = csi.Deconvolute(scan.MassSpectrum, new MzRange(900, 1008)).ToList();
+                watch.Stop();
+                times.Add(watch.ElapsedMilliseconds);
+            }
+        });
+        times.ToList().ForEach(Console.WriteLine);
     }
 
     [Test]
@@ -363,17 +386,43 @@ public class TestChargeStateIdentifier
         string path = @"D:\220220AveragedDatasets\LVS Jurkat\02-18-20_jurkat_td_rep2_fract9.raw";
         var scans = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList();
 
-        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15, envelopeThreshold: 0.6);
+        ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 15, envelopeThreshold: 0.6);
         ChargeStateIdentifier csi = new(deconParams);
         ConcurrentBag<int> countsOfValues = new();
+
+        ConcurrentBag<IsotopicEnvelope> results = new(); 
         Parallel.For(0, 1, i =>
         {
-            Stopwatch watch = new(); 
+            ConcurrentDictionary<double, IsotopicEnvelope> ieHashSet = new(new DoubleEqualityComparer());
+            Stopwatch watch = new();
             watch.Start();
-            var output = ChargeStateIdentifier.PreFilterMzVals(scans[i].MassSpectrum.XArray,
-                5, 60, 10000, 60000, 5d);
-            watch.Stop();
-            Console.WriteLine("{0},{1},{2}", scans[i].MassSpectrum.XArray.Length, output.Count(), watch.ElapsedMilliseconds);
+            // slow step about 200 ms
+            var output = ChargeStateIdentifier.PreFilterMzVals(scans[i].MassSpectrum.XArray, 
+                scans[i].MassSpectrum.YArray, 5, 60, 10000, 
+                60000, 5d, 1.003)
+                .OrderBy(z => z)
+                .ToList();
+            // fast step
+            var ladder = ChargeStateIdentifier.CreateChargeStateLadders(output, 5, 60, 800, 2000);
+
+            foreach (var m in ladder)
+            {
+                var index = ChargeStateIdentifier.MatchChargeStateLadder(scans[i].MassSpectrum, m,
+                    deconParams.PeakMatchPpmTolerance);
+                var ladderMatch =
+                    ChargeStateIdentifier.TransformToChargeStateLadderMatch(index, scans[i].MassSpectrum, m);
+
+                var successfulMatch = csi.ScoreChargeStateLadderMatch(ladderMatch, scans[i].MassSpectrum);
+
+                if (successfulMatch)
+                {
+                    csi.FindIsotopicEnvelopes(ladderMatch!, scans[i].MassSpectrum, 
+                        new MzRange(900, 1000), ieHashSet, 0.6);
+
+                }
+            }
+            var sortedResults = ieHashSet.Values.OrderByDescending(i => i.Score).ToList(); 
+            Console.WriteLine(watch.ElapsedMilliseconds);
         });
     }
 
