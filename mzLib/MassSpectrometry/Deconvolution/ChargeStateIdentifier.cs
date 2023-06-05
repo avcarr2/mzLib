@@ -25,10 +25,44 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
         return DeconvolutePrivateFast(spectrumToDeconvolute, range, DeconvolutionParams.EnvelopeThreshold);
-        //return DeconvoluteDataFlow(spectrumToDeconvolute, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
-        //    spectrumToDeconvolute.FirstX.Value, spectrumToDeconvolute.LastX.Value,
-        //    DeconvolutionParams.PeakMatchPpmTolerance, range, minimumScore: DeconvolutionParams.EnvelopeThreshold,
-        //    maxThreads: DeconvolutionParams.MaxThreads).ToList(); 
+    }
+    /// <summary>
+    /// The function that actually does the work in deconvolution, optimized for speed. 
+    /// </summary>
+    /// <param name="scan"></param>
+    /// <param name="deconvolutionRange"></param>
+    /// <param name="spectralSimMatchThresh"></param>
+    /// <returns></returns>
+    internal IEnumerable<IsotopicEnvelope> DeconvolutePrivateFast(MzSpectrum scan, MzRange deconvolutionRange, double spectralSimMatchThresh)
+    {
+        ConcurrentDictionary<double, IsotopicEnvelope> ieHashSet = new(new DoubleEqualityComparer());
+
+        // slow step about 200 ms
+        var output = PreFilterMzVals(scan.XArray,
+            scan.YArray, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
+            DeconvolutionParams.MinimumMassDa,
+            DeconvolutionParams.MaximumMassDa,
+            DeconvolutionParams.PeakMatchPpmTolerance,
+            DeconvolutionParams.DeltaMass);
+
+        var ladder = CreateChargeStateLadders(output, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
+            scan.FirstX!.Value, scan.LastX!.Value);
+
+        Parallel.ForEach(ladder, (m) =>
+        {
+            var index = MatchChargeStateLadder(scan, m,
+                DeconvolutionParams.PeakMatchPpmTolerance);
+            var ladderMatch = TransformToChargeStateLadderMatch(index, scan, m);
+
+            var successfulMatch = ScoreChargeStateLadderMatch(ladderMatch, scan);
+
+            if (successfulMatch)
+            {
+                FindIsotopicEnvelopes(ladderMatch!, scan, deconvolutionRange, ieHashSet, DeconvolutionParams.EnvelopeThreshold);
+            }
+        });
+
+        return ieHashSet.Values;
     }
 
     /// <summary>
@@ -46,46 +80,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     {
         return allMasses[massIndex][0] - diffToMonoisotopic[massIndex];
     }
-
-    /// <summary>
-    /// Given a spectrum and an mz range, uses the ChargeStateLadderMatch object to get the theoretical isotopic envelope, then
-    /// grabs the peaks that are within the range peaks in the theoretical isotopic envelope greater than a relative intensity of 0.05. 
-    /// </summary>
-    /// <param name="match"></param>
-    /// <param name="scan"></param>
-    /// <param name="range"></param>
-    /// <returns></returns>
-    public IEnumerable<IsotopicEnvelope> FindIsotopicEnvelopes(ChargeStateLadderMatch match, MzSpectrum scan,
-        MzRange range, double minimumScore)
-    {
-        ConcurrentBag<IsotopicEnvelope> results = new();
-        Parallel.For(0, match.ChargesOfMatchingPeaks.Count, i =>
-        {
-            int charge = (int)Math.Round(match.ChargesOfMatchingPeaks[i]);
-            if (range.Contains(match.MatchingMzPeaks[i]))
-            {
-                double[] neutralXArray = scan.XArray.Select(j => j.ToMass(charge)).ToArray();
-
-                MzSpectrum neutralMassSpectrum = new(neutralXArray, scan.YArray, true);
-
-                double maxMassToTake = allMasses[match.MassIndex].Max();
-                double minMassToTake = allMasses[match.MassIndex].Min();
-
-                MzRange newRange = new(minMassToTake, maxMassToTake);
-
-                var envelope = FillIsotopicEnvelopeByBounds(match, neutralMassSpectrum, newRange, charge);
-                if (envelope != null)
-                {
-                    RescoreIsotopicEnvelope(envelope);
-                    if (envelope.Score >= minimumScore)
-                        results.Add(envelope);
-                }
-
-            }
-        });
-        return results;
-    }
-
+    
     internal void FindIsotopicEnvelopes(ChargeStateLadderMatch match, MzSpectrum scan, MzRange range, 
         ConcurrentDictionary<double, IsotopicEnvelope> ieHashSet, double minimumThreshold)
     {
@@ -277,41 +272,6 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         return output.ToList();
     }
-    /// <summary>
-    /// Generates a ChargeStateLadderMatch object from a charge state ladder and the list of indices that map to the original data. 
-    /// </summary>
-    /// <param name="ladderToIndicesMap"></param>
-    /// <param name="mzIntensityList"></param>
-    /// <param name="ladders"></param>
-    /// <returns></returns>
-    internal IEnumerable<ChargeStateLadderMatch> TransformToChargeStateLadderMatch(List<List<int>> ladderToIndicesMap, 
-        List<(double,double)> mzIntensityList, List<ChargeStateLadder> ladders)
-    {
-        for (var index = 0; index < ladderToIndicesMap.Count; index++)
-        {
-            var indicesSet = ladderToIndicesMap[index];
-            var ladder = ladders[index];
-
-            List<double> listMzVals = new();
-            List<double> listIntVals = new();
-            foreach (var indices in indicesSet)
-            {
-                listMzVals.Add(mzIntensityList[indices].Item1);
-                listIntVals.Add(mzIntensityList[indices].Item2);
-            }
-
-            List<double> chargesOfMatchingPeaks = listMzVals.Select(i => ladder.Mass / i).ToList();
-
-            ChargeStateLadderMatch ladderMatch = new()
-            {
-                MatchingMzPeaks = listMzVals,
-                IntensitiesOfMatchingPeaks = listIntVals,
-                TheoreticalLadder = ladder, 
-                ChargesOfMatchingPeaks = chargesOfMatchingPeaks
-            }; 
-            yield return ladderMatch;
-        }
-    }
 
     internal static ChargeStateLadderMatch TransformToChargeStateLadderMatch(List<int> ladderToIndexMap, 
         MzSpectrum scan, ChargeStateLadder ladder)
@@ -333,44 +293,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             ChargesOfMatchingPeaks = chargesOfMatchingPeaks
         };
     }
-    /// <summary>
-    /// The function that actually does the work in deconvolution, optimized for speed. 
-    /// </summary>
-    /// <param name="scan"></param>
-    /// <param name="deconvolutionRange"></param>
-    /// <param name="spectralSimMatchThresh"></param>
-    /// <returns></returns>
-    internal IEnumerable<IsotopicEnvelope> DeconvolutePrivateFast(MzSpectrum scan, MzRange deconvolutionRange, double spectralSimMatchThresh)
-    {
-        ConcurrentDictionary<double, IsotopicEnvelope> ieHashSet = new(new DoubleEqualityComparer());
-        
-        // slow step about 200 ms
-        var output = PreFilterMzVals(scan.XArray,
-            scan.YArray, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
-            DeconvolutionParams.MinimumMassDa,
-            DeconvolutionParams.MaximumMassDa, 
-            DeconvolutionParams.PeakMatchPpmTolerance,
-            DeconvolutionParams.DeltaMass); 
-
-        var ladder = CreateChargeStateLadders(output, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge, 
-            scan.FirstX!.Value, scan.LastX!.Value);
-        
-        Parallel.ForEach(ladder, (m) =>
-        {
-            var index = MatchChargeStateLadder(scan, m,
-                DeconvolutionParams.PeakMatchPpmTolerance);
-            var ladderMatch = TransformToChargeStateLadderMatch(index, scan, m);
-
-            var successfulMatch = ScoreChargeStateLadderMatch(ladderMatch, scan);
-
-            if (successfulMatch)
-            {
-                FindIsotopicEnvelopes(ladderMatch!, scan, deconvolutionRange, ieHashSet, DeconvolutionParams.EnvelopeThreshold);
-            }
-        }); 
-
-        return ieHashSet.Values; 
-    }
+    
 
 
     /// <summary>

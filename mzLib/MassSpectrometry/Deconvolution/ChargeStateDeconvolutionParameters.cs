@@ -20,7 +20,8 @@ namespace MassSpectrometry
 
 
         public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm,
-            int maxThreads, double minimumMass = 9500, double maximumMass = 60000, double envelopeThreshold = 0.6, double deltaMass = 1.003) : base()
+            int maxThreads, double minimumMass = 9500, double maximumMass = 60000, 
+            double envelopeThreshold = 0.6, double deltaMass = 1.003) : base()
         {
             MinCharge = minCharge;
             MaxCharge = maxCharge;
