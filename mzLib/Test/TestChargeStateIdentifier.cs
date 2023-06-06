@@ -160,7 +160,7 @@ public class TestChargeStateIdentifier
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(1245,1260)).OrderByDescending(i => i.Score).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(800,2000)).OrderByDescending(i => i.Score).ToList();
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
         WriteIsotopicEnvelopesToPlottingPoints(results);
