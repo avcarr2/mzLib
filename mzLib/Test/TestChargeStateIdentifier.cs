@@ -15,6 +15,7 @@ using MassSpectrometry;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Documents;
+using System.Windows.Input;
 using Accord;
 
 
@@ -160,9 +161,35 @@ public class TestChargeStateIdentifier
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(800,2000)).OrderByDescending(i => i.Score).ToList();
+        var results = csi.Deconvolute(scan, new MzRange(800, 2000))
+            .DistinctBy(i => i.Score)
+            .OrderByDescending(i => i.Score);
+        
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
+        WriteIsotopicEnvelopesToPlottingPoints(results);
+    }
+
+    [Test]
+    [TestCase(5)]
+    public void Figure2MediumResFornelli(double peakmatchTol)
+    {
+        string path = @"D:\FornelliDataSet\2015_03_19_Imr90_mh_fr_6_tech_1-985_1080_averaged.raw";
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.1, applyTrimmingToMs1:true);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
+        ChargeStateDeconvolutionParams deconParams = new(5, 80, 
+            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.0);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        Stopwatch watch = new();
+        watch.Start();
+        var results = csi.Deconvolute(scan, new MzRange(800, 2000))
+            .OrderByDescending(i => i.Score); 
+        Console.WriteLine(watch.ElapsedMilliseconds);
+        Console.WriteLine("Total number of results: {0}", results.Count());
+        
+        watch.Stop();
+
         WriteIsotopicEnvelopesToPlottingPoints(results);
     }
 
@@ -216,7 +243,7 @@ public class TestChargeStateIdentifier
         ConcurrentBag<IsotopicEnvelope> results = new(); 
         Parallel.For(0, 1, i =>
         {
-            ConcurrentDictionary<double, IsotopicEnvelope> ieHashSet = new(new DoubleEqualityComparer());
+            ConcurrentDictionary<double, List<IsotopicEnvelope>> ieHashSet = new(new DoubleEqualityComparer());
             Stopwatch watch = new();
             watch.Start();
             // slow step about 200 ms
@@ -244,7 +271,10 @@ public class TestChargeStateIdentifier
 
                 }
             }
-            var sortedResults = ieHashSet.Values.OrderByDescending(i => i.Score).ToList(); 
+            var sortedResults = ieHashSet.Values
+                .SelectMany(i => i)
+                .OrderByDescending(i => i.Score)
+                .ToList(); 
             Console.WriteLine(watch.ElapsedMilliseconds);
         });
     }
