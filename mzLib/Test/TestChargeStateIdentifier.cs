@@ -178,19 +178,32 @@ public class TestChargeStateIdentifier
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.1, applyTrimmingToMs1:true);
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
         ChargeStateDeconvolutionParams deconParams = new(5, 80, 
-            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.0);
+            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.0, deltaMass:1.0);
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(800, 2000))
-            .OrderByDescending(i => i.Score); 
+        var results = csi.Deconvolute(scan, new MzRange(1000, 1100))
+            .OrderByDescending(i => i.MonoisotopicMass).ToList(); 
+
+        watch.Stop();
+        
+        var totalIntensities = results.GroupBy(i => i.MonoisotopicMass, new DoubleEqualityComparer())
+            .Select((i) => (i.Select(j => j.MonoisotopicMass).Average(), i.Select(j => j.TotalIntensity).Sum()))
+            .ToList();
+        
+        using var writer = new StreamWriter("deconvSpectra.csv");
+        foreach (var pair in totalIntensities)
+        {
+            writer.WriteLine("{0},{1}", pair.Item1, pair.Item2);
+        }
+        writer.Flush();
+        
+
         Console.WriteLine(watch.ElapsedMilliseconds);
         Console.WriteLine("Total number of results: {0}", results.Count());
-        
-        watch.Stop();
 
-        WriteIsotopicEnvelopesToPlottingPoints(results);
+        WriteIsotopicEnvelopesToPlottingPoints(results,"");
     }
 
     [Test]

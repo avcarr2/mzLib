@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using MassSpectrometry.MzSpectra;
 using MathNet.Numerics;
@@ -25,28 +26,29 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
     public override IEnumerable<IsotopicEnvelope> Deconvolute(MzSpectrum spectrumToDeconvolute, MzRange range)
     {
-        var results = DeconvolutePrivateFast(spectrumToDeconvolute, 
-                range, DeconvolutionParams.EnvelopeThreshold)
-            .GroupBy(i => i.MonoisotopicMass,
-                (j, k) =>
-                    new
-                    {
-                        key = j, 
-                        envelopes = k
-                    }, new DoubleEqualityComparer());
-        foreach (var kve in results)
-        {
-            var withDistinctChargeStates = kve.envelopes.DistinctBy(i => i.Charge);
-            if (withDistinctChargeStates.Count() > 1)
-            {
-                var averagedMonoisotpic = withDistinctChargeStates.Select(i => i.MonoisotopicMass).Mean();
-                withDistinctChargeStates.ForEach(i => i.SetMonoisotopicMass(averagedMonoisotpic));
-                foreach (var envelope in withDistinctChargeStates)
-                {
-                    yield return envelope;
-                }
-            }
-        }
+        return DeconvolutePrivateFast(spectrumToDeconvolute,
+            range, DeconvolutionParams.EnvelopeThreshold); 
+        //    .GroupBy(i => i.MassIndex, 
+        //        (j, k) =>
+        //            new
+        //            {
+        //                key = j, 
+        //                envelopes = k, 
+        //                meanMass = k.Select(i => i.MonoisotopicMass).Average()
+        //            });
+        //foreach (var kve in results)
+        //{
+        //    var withDistinctChargeStates = kve.envelopes
+        //        .DistinctBy(i => i.Charge);
+
+        //    if (withDistinctChargeStates.Count() > 1)
+        //    {
+        //        foreach (var envelope in withDistinctChargeStates)
+        //        {
+        //            yield return envelope;
+        //        }
+        //    }
+        //}
     }
     /// <summary>
     /// The function that actually does the work in deconvolution, optimized for speed. 
@@ -64,7 +66,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         // slow step about 200 ms
         var output = PreFilterMzVals(scan.XArray,
-            scan.YArray, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
+            scan.YArray, DeconvolutionParams.MinCharge, 
+            DeconvolutionParams.MaxCharge,
             DeconvolutionParams.MinimumMassDa,
             DeconvolutionParams.MaximumMassDa,
             DeconvolutionParams.PeakMatchPpmTolerance,
@@ -75,8 +78,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         Parallel.ForEach(ladder, (m) =>
         {
-            var index = MatchChargeStateLadder(scan, m,
-                DeconvolutionParams.PeakMatchPpmTolerance);
+            var index = MatchChargeStateLadder(scan, m, DeconvolutionParams.PeakMatchPpmTolerance);
             var ladderMatch = TransformToChargeStateLadderMatch(index, scan, m);
 
             var successfulMatch = ScoreChargeStateLadderMatch(ladderMatch, scan);
@@ -135,6 +137,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
                         {
                             if (ieHashSet.TryGetValue(match.MonoisotopicMass, out var tempList))
                             {
+                                if (!tempList.Contains(envelope)) return; 
+                                
                                 tempList.Add(envelope);
                             }
                         }
@@ -219,7 +223,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         // Define the threshold value as mean + 1.5 * standard deviation of the intensity values
         var cumulativeIntensityArray = cumulativeIntensityDict.Values.ToArray();
-        var meanVariance = ArrayStatistics.MedianInplace(cumulativeIntensityArray.Where(z => z > 0).ToArray()); 
+        var meanVariance = ArrayStatistics.QuantileInplace(cumulativeIntensityArray.Where(z => z > 0).ToArray(), 0.9); 
         double threshold = meanVariance;
 
         //double medianCounts = ArrayStatistics.Mean(cumulativeIntensities.Where(i => i >= 1.1).ToArray());
@@ -234,9 +238,16 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             }
         }
 
-        return concurrentHashSet
-            .Where(i => indexToKeepList.Contains(i.Value))
-            .Select(i => i.Key);
+        return concurrentHashSet.GroupBy(x => x.Value, new DoubleEqualityComparer())
+            .ToDictionary(t => t.Key, 
+                t => t.Select(r => r.Key).Average())
+            .Select(i => i.Value); 
+        
+        //return concurrentHashSet
+        //    .Where(i => indexToKeepList.Contains(i.Value))
+        //    .Select(i => i.Key)
+        //    .Mean()
+
     }
     private static int GetBucket(double[] array, double value)
     {
@@ -286,14 +297,9 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             double upperTol = t + tolerance;
             double lowerTol = t - tolerance;
             // get indices of the range of double values that contain the values in scan.Xarray 
-            int upperIndex = Array.BinarySearch(scan.XArray, upperTol);
-            int lowerIndex = Array.BinarySearch(scan.XArray, lowerTol);
+            int upperIndex = GetBucket(scan.XArray, upperTol); 
+            int lowerIndex = GetBucket(scan.XArray, lowerTol);
 
-            upperIndex = upperIndex < 0 ? ~upperIndex : upperIndex;
-            lowerIndex = lowerIndex < 0 ? ~lowerIndex : lowerIndex;
-
-            upperIndex = upperIndex >= scan.XArray.Length ? scan.XArray.Length - 1 : upperIndex;
-            lowerIndex = lowerIndex == 0 ? 0 : lowerIndex;
             // search over a subset of the Xarray to speed up the attempted peak matching. 
             for (int k = lowerIndex; k <= upperIndex; k++)
             {
@@ -387,15 +393,15 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         List<double> errorInMostIntense = new();
         //assume that the selected m / z is the most intense peak in the envelope. 
 
-        //if (match.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) return false;
+        if (match.TheoreticalLadder.Mass <= DeconvolutionParams.MinimumMassDa) return false;
 
-        //match.CompareTheoreticalNumberChargeStatesVsActual();
-        //if (match.PercentageMzValsMatched < 0.2) return false;
+        match.CompareTheoreticalNumberChargeStatesVsActual();
+        if (match.PercentageMzValsMatched < 0.2) return false;
 
-        //match.CalculateChargeStateScore();
-        //if (match.SequentialChargeStateScore < -1.1) return false;
-        //match.CalculateEnvelopeScore();
-        //if (match.EnvelopeScore < 0.1) return false;
+        match.CalculateChargeStateScore();
+        if (match.SequentialChargeStateScore < -1.10) return false;
+        match.CalculateEnvelopeScore();
+        if (match.EnvelopeScore < 0.1) return false;
 
         for (int i = 0; i < match.MatchingMzPeaks.Count; i++)
         {
