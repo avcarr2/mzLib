@@ -722,6 +722,18 @@ namespace MassSpectrometry
             {
                 ind = ~ind;
             }
+
+            if (ind >= XArray.Length)
+            {
+                ind = XArray.Length - 1;
+            }
+
+            if (ind != 0 && XArray[ind] - minX >
+                minX - XArray[ind - 1])
+            {
+                ind--;
+            }
+
             while (ind < Size && XArray[ind] <= maxX)
             {
                 yield return GetPeak(ind);

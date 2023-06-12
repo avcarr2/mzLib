@@ -180,5 +180,6 @@ namespace MassSpectrometry
         {
             return (Scans != null && Scans.Length > 0);
         }
+
     }
 }

@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Windows.Documents;
 using System.Windows.Input;
 using Accord;
+using MathNet.Numerics.Statistics;
 
 
 namespace Test;
@@ -156,54 +157,62 @@ public class TestChargeStateIdentifier
         string path = @"D:\MSV000084001_StandardProteins\190226_FIlg_3_FD_500ng-averaged.raw";
         FilteringParams filteringParams = new FilteringParams();
         var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
-        ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 1, envelopeThreshold:0.6);
+        ChargeStateDeconvolutionParams deconParams = new(5, 60, 10, maxThreads: 1, envelopeThreshold:0.1);
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(800, 2000))
-            .DistinctBy(i => i.Score)
-            .OrderByDescending(i => i.Score);
-        
+        var results = csi.Deconvolute(scan, new MzRange(800, 2000)); 
+
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
+        //WriteIsotopicEnvelopesToPlottingPoints(results);
+        //using var writer = new StreamWriter("deconvSpectra.csv");
+        //writer.WriteLine("Mass,Intensity");
+        
+        //foreach (var pair in filteredIntensities)
+        //{
+        //    writer.WriteLine("{0},{1}", pair.Item1, pair.Item2);
+        //}
+        //writer.Flush();
         WriteIsotopicEnvelopesToPlottingPoints(results);
     }
 
     [Test]
+    [TestCase(30)]
+    [TestCase(100)]
+    [TestCase(15)]
     [TestCase(5)]
-    public void Figure2MediumResFornelli(double peakmatchTol)
+    [TestCase(60)]
+    
+    public void Figure2MediumRes(double peakmatchTol)
     {
-        string path = @"D:\FornelliDataSet\2015_03_19_Imr90_mh_fr_6_tech_1-985_1080_averaged.raw";
+        string path = @"D:\FornelliDataSet\2015_03_19_Imr90_mh_fr_4_tech_1.raw";
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.1, applyTrimmingToMs1:true);
-        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
-        ChargeStateDeconvolutionParams deconParams = new(5, 80, 
-            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.0, deltaMass:1.0);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList()[746];
+        ChargeStateDeconvolutionParams deconParams = new(25, 60, 
+            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.20, 
+            deltaMass:1.0, minimumMass:10000, maximumMass:150000);
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(1000, 1100))
-            .OrderByDescending(i => i.MonoisotopicMass).ToList(); 
+        var results = csi.Deconvolute(scan.MassSpectrum, new MzRange(838, 851))
+            .OrderByDescending(i => i.Score)
+            .ToList(); 
 
         watch.Stop();
-        
-        var totalIntensities = results.GroupBy(i => i.MonoisotopicMass, new DoubleEqualityComparer())
-            .Select((i) => (i.Select(j => j.MonoisotopicMass).Average(), i.Select(j => j.TotalIntensity).Sum()))
-            .ToList();
-        
-        using var writer = new StreamWriter("deconvSpectra.csv");
-        foreach (var pair in totalIntensities)
-        {
-            writer.WriteLine("{0},{1}", pair.Item1, pair.Item2);
-        }
-        writer.Flush();
-        
 
+        //using var writer = new StreamWriter("deconvSpectra.csv");
+        //foreach (var pair in filteredIntensities)
+        //{
+        //    writer.WriteLine("{0},{1}", pair.Item1, pair.Item2);
+        //}
+        //writer.Flush();
         Console.WriteLine(watch.ElapsedMilliseconds);
         Console.WriteLine("Total number of results: {0}", results.Count());
 
-        WriteIsotopicEnvelopesToPlottingPoints(results,"");
+        WriteIsotopicEnvelopesToPlottingPoints(results, "");
     }
 
     [Test]
@@ -243,54 +252,56 @@ public class TestChargeStateIdentifier
         Assert.True(comparer.Equals(double1, double2)); 
     }
 
-    [Test]
-    public void TestPreFilterMzVals()
-    {
-        string path = @"D:\220220AveragedDatasets\LVS Jurkat\02-18-20_jurkat_td_rep2_fract9.raw";
-        var scans = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList();
+    //[Test]
+    //public void TestPreFilterMzVals()
+    //{
+    //    string path = @"D:\220220AveragedDatasets\LVS Jurkat\02-18-20_jurkat_td_rep2_fract9.raw";
+    //    var scans = MsDataFileReader.GetDataFile(path).LoadAllStaticData().GetAllScansList();
 
-        ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 15, envelopeThreshold: 0.6);
-        ChargeStateIdentifier csi = new(deconParams);
-        ConcurrentBag<int> countsOfValues = new();
+    //    ChargeStateDeconvolutionParams deconParams = new(5, 60, 5, maxThreads: 15, envelopeThreshold: 0.6);
+    //    ChargeStateIdentifier csi = new(deconParams);
+    //    ConcurrentBag<int> countsOfValues = new();
 
-        ConcurrentBag<IsotopicEnvelope> results = new(); 
-        Parallel.For(0, 1, i =>
-        {
-            ConcurrentDictionary<double, List<IsotopicEnvelope>> ieHashSet = new(new DoubleEqualityComparer());
-            Stopwatch watch = new();
-            watch.Start();
-            // slow step about 200 ms
-            var output = ChargeStateIdentifier.PreFilterMzVals(scans[i].MassSpectrum.XArray, 
-                scans[i].MassSpectrum.YArray, 5, 60, 10000, 
-                60000, 5d, 1.003)
-                .OrderBy(z => z)
-                .ToList();
-            // fast step
-            var ladder = ChargeStateIdentifier.CreateChargeStateLadders(output, 5, 60, 800, 2000);
+    //    ConcurrentBag<IsotopicEnvelope> results = new();
+    //    double[] massesArray =
+    //        ChargeStateIdentifier.GenerateMassesIndex(10000, 60000, deconParams.PeakMatchPpmTolerance); 
 
-            foreach (var m in ladder)
-            {
-                var index = ChargeStateIdentifier.MatchChargeStateLadder(scans[i].MassSpectrum, m,
-                    deconParams.PeakMatchPpmTolerance);
-                var ladderMatch =
-                    ChargeStateIdentifier.TransformToChargeStateLadderMatch(index, scans[i].MassSpectrum, m);
+    //    Parallel.For(0, 1, i =>
+    //    {
+    //        ConcurrentDictionary<double, List<IsotopicEnvelope>> ieHashSet = new(new DoubleEqualityComparer());
+    //        Stopwatch watch = new();
+    //        watch.Start();
+    //        // slow step about 200 ms
+    //        var output = ChargeStateIdentifier.PreFilterMzVals(scans[i].MassSpectrum.XArray, 
+    //            scans[i].MassSpectrum.YArray, 5, 60, )
+    //            .OrderBy(z => z)
+    //            .ToList();
+    //        // fast step
+    //        var ladder = ChargeStateIdentifier.CreateChargeStateLadders(output, 5, 60, 800, 2000);
 
-                var successfulMatch = csi.ScoreChargeStateLadderMatch(ladderMatch, scans[i].MassSpectrum);
+    //        foreach (var m in ladder)
+    //        {
+    //            var index = ChargeStateIdentifier.MatchChargeStateLadder(scans[i].MassSpectrum, m,
+    //                deconParams.PeakMatchPpmTolerance);
+    //            var ladderMatch =
+    //                ChargeStateIdentifier.TransformToChargeStateLadderMatch(index, scans[i].MassSpectrum, m);
 
-                if (successfulMatch)
-                {
-                    csi.FindIsotopicEnvelopes(ladderMatch!, scans[i].MassSpectrum, 
-                        new MzRange(900, 1000), ieHashSet, 0.6);
+    //            var successfulMatch = csi.ScoreChargeStateLadderMatch(ladderMatch, scans[i].MassSpectrum);
 
-                }
-            }
-            var sortedResults = ieHashSet.Values
-                .SelectMany(i => i)
-                .OrderByDescending(i => i.Score)
-                .ToList(); 
-            Console.WriteLine(watch.ElapsedMilliseconds);
-        });
-    }
+    //            if (successfulMatch)
+    //            {
+    //                csi.FindIsotopicEnvelopes(ladderMatch!, scans[i].MassSpectrum, 
+    //                    new MzRange(900, 1000), ieHashSet, 0.6);
+
+    //            }
+    //        }
+    //        var sortedResults = ieHashSet.Values
+    //            .SelectMany(i => i)
+    //            .OrderByDescending(i => i.Score)
+    //            .ToList(); 
+    //        Console.WriteLine(watch.ElapsedMilliseconds);
+    //    });
+    //}
 
     public void WriteIsotopicEnvelopesToPlottingPoints(IEnumerable<IsotopicEnvelope> envelopeCollection, string extension = ".tsv")
     {
@@ -452,6 +463,17 @@ public class TestChargeStateIdentifier
     private static bool DoubleAreNearlyEqual(double d1, double d2, double ppmMatchTolerance)
     {
         return Math.Abs(d1 - d2) / 1e6 * d1 < ppmMatchTolerance;
+    }
+
+    [Test]
+    public void TestGenerateMassesIndex()
+    {
+        double minMass = 9500;
+        double maxMass = 60000;
+        double ppmTolerance = 15;
+
+        double[] results = ChargeStateIdentifier.GenerateMassesIndex(minMass, maxMass, 15);
+        Console.WriteLine("{0},{1}", results[0], results[^1]);
     }
 
 
