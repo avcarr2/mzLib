@@ -16,7 +16,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Documents;
 using System.Windows.Input;
-using Accord;
 using MathNet.Numerics.Statistics;
 
 
@@ -118,38 +117,7 @@ public class TestChargeStateIdentifier
         Console.WriteLine(watch.ElapsedMilliseconds);
     }
     
-    public List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> GetMzChargeStateIntensityMonoisotopicMass(Dictionary<double, List<IsotopicEnvelope>> dictEnvelope)
-    {
-        List<(double xVal, double yVal, int chargeState, double monoisotopicMass)> outputList =
-            new List<(double xVal, double yVal, int chargeState, double monoisotopicMass)>();
-
-        foreach (var kvp in dictEnvelope)
-        {
-            double mass = kvp.Key;
-            
-            foreach (var envelope in kvp.Value)
-            {
-                double mostAbundantMz =
-                    (ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex) + mass).ToMz(envelope.Charge);
-                // retrieve the intensity corresponding to the mostabundant isotopic mass
-                var arrayOfMzVals = envelope.Peaks
-                    .OrderBy(i => i.mz)
-                    .ToArray(); 
-
-                int indexOfMostAbundant = Array.BinarySearch(arrayOfMzVals.Select(i => i.mz).ToArray(), mostAbundantMz); 
-
-                indexOfMostAbundant = indexOfMostAbundant < 0 ? ~indexOfMostAbundant : indexOfMostAbundant;
-                indexOfMostAbundant = indexOfMostAbundant >= envelope.Peaks.Count ? envelope.Peaks.Count: indexOfMostAbundant;
-                var maxPairs = arrayOfMzVals[indexOfMostAbundant];
-                
-
-                int charge = envelope.Charge;
-                outputList.Add((maxPairs.mz, maxPairs.intensity, charge, mass));
-            }
-        }
-        return outputList;
-    }
-
+    
     [Test]
     [Repeat(1)]
     public void Figure1TestCaseEasilyResolved()
@@ -179,25 +147,36 @@ public class TestChargeStateIdentifier
     }
 
     [Test]
-    [TestCase(30)]
+    public void TestCalculateSequentialChargeStateScore()
+    {
+        
+    }
+
+    [Test]
+    [TestCase(75)]
     [TestCase(100)]
-    [TestCase(15)]
-    [TestCase(5)]
-    [TestCase(60)]
+    [TestCase(200)]
+    [TestCase(300)]
+    [TestCase(400)]
+    [TestCase(500)]
+    [TestCase(600)]
+    [TestCase(700)]
+    [TestCase(800)]
+    [TestCase(900)]
+    [TestCase(1000)]
     
     public void Figure2MediumRes(double peakmatchTol)
     {
         string path = @"D:\FornelliDataSet\2015_03_19_Imr90_mh_fr_4_tech_1.raw";
         FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.1, applyTrimmingToMs1:true);
-        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList()[746];
-        ChargeStateDeconvolutionParams deconParams = new(25, 60, 
-            peakmatchTol, maxThreads: 1, envelopeThreshold: 0.20, 
-            deltaMass:1.0, minimumMass:10000, maximumMass:150000);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList()[1016];
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 50, peakmatchTol, maxThreads: 10,
+            envelopeThreshold: 0.15, envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.15); 
         ChargeStateIdentifier csi = new(deconParams);
 
         Stopwatch watch = new();
         watch.Start();
-        var results = csi.Deconvolute(scan.MassSpectrum, new MzRange(838, 851))
+        var results = csi.Deconvolute(scan.MassSpectrum, new MzRange(950, 1000))
             .OrderByDescending(i => i.Score)
             .ToList(); 
 
@@ -213,6 +192,59 @@ public class TestChargeStateIdentifier
         Console.WriteLine("Total number of results: {0}", results.Count());
 
         WriteIsotopicEnvelopesToPlottingPoints(results, "");
+    }
+    [Test]
+    [TestCase(10)]
+    //[TestCase(25)]
+    //[TestCase(5)]
+    //[TestCase(1)]
+    public void Figure3HighResBigProtein(double peakmatchTol)
+    {
+        string path = @"C:\Xcalibur\data\08-05-17_B9_myoblast_B_fract11and12_td_rep1_scan2864-3082.raw";
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.25, applyTrimmingToMs1: true);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First(); 
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 80, peakmatchTol, maxThreads: 10,
+            envelopeThreshold: 0.6, envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.15, sequentialChargeStateDiff: 1.0);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        Stopwatch watch = new();
+        watch.Start();
+        var results = csi.Deconvolute(scan.MassSpectrum, new MzRange(600, 1200))
+            .OrderByDescending(i => i.Score)
+            .Where(i => i.MonoisotopicMass > 30000 && i.MonoisotopicMass < 40000)
+            .ToList();
+
+        watch.Stop();
+
+        //using var writer = new StreamWriter("deconvSpectra.csv");
+        //foreach (var pair in filteredIntensities)
+        //{
+        //    writer.WriteLine("{0},{1}", pair.Item1, pair.Item2);
+        //}
+        //writer.Flush();
+        Console.WriteLine(watch.ElapsedMilliseconds);
+        Console.WriteLine("Total number of results: {0}", results.Count);
+
+        WriteIsotopicEnvelopesToPlottingPoints(results);
+    }
+
+    [Test]
+    [TestCase(@"C:\Xcalibur\data\glyceraldehyde_dehydrogenase_fornelliDataset.raw")]
+    public void FigureLargeNonIsotopicallyResolvedProtein(string path)
+    {
+        double peakMatchTol = 200d; 
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.1, applyTrimmingToMs1: true);
+        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First();
+        ChargeStateDeconvolutionParams deconParams = new ChargeStateDeconvolutionParams(5, 80, peakMatchTol, maxThreads: 10,
+            envelopeThreshold: 0.2, envelopeScoreThresh: 0.2, percentageMatchedThresh: 0.25, sequentialChargeStateDiff: 1.0);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        Stopwatch watch = new();
+        watch.Start();
+        var results = csi.Deconvolute(scan.MassSpectrum, new MzRange(500, 1500))
+            .OrderByDescending(i => i.Score)
+            .ToList();
+        WriteIsotopicEnvelopesToPlottingPoints(results);
     }
 
     [Test]
@@ -352,7 +384,6 @@ public class TestChargeStateIdentifier
         var maxPairs = envelope.Peaks.OrderBy(i => i.mz).ToArray()[indexOfMostAbundant3];
 
         int charge = envelope.Charge;
-        double mz = maxPairs.mz.ToMz(envelope.Charge); 
 
         return (maxPairs.mz.ToMz(envelope.Charge), maxPairs.intensity, charge, 
             envelope.MonoisotopicMass, envelope.Score, ChargeStateIdentifier.GetDiffToMonoisotopic(envelope.MassIndex)); 

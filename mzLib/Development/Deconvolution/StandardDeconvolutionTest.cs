@@ -32,7 +32,7 @@ namespace Development.Deconvolution
 
         private const string cytochromeCSeq = ""; 
         #region Set Up Test Cases
-
+        
         /// <summary>
         /// Instantiates all test cases to be ran
         /// </summary>
@@ -54,7 +54,8 @@ namespace Development.Deconvolution
             Deconvoluter classicBottomUpDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
                 new ClassicDeconvolutionParameters(5, 12, 4, 3));
             Deconvoluter deconvolveByChargeState = new Deconvoluter(DeconvolutionType.AustinConv,
-                new ChargeStateDeconvolutionParams(5, 50, 5, maxThreads:10)); 
+                new ChargeStateDeconvolutionParams(5, 50, 15, maxThreads:10, 
+                    envelopeThreshold:0.3, envelopeScoreThresh:0.6, percentageMatchedThresh:0.15)); 
 
             // Add Individual peak test cases
             
@@ -164,6 +165,7 @@ namespace Development.Deconvolution
                     new []{9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20},
                     new []{1374.16, 1236.74, 1124.40, 1030.87, 951.65, 883.82, 824.90, 773.41, 727.91, 687.58, 619.03}),
             };
+            
 
             foreach (var newDeconvoluter in wholeSpectrumDeconvolutionTestCases.Select(i =>
                      {
@@ -191,7 +193,7 @@ namespace Development.Deconvolution
             // deconvolution
             List<IsotopicEnvelope> allResults = testCase.Deconvoluter
                 .Deconvolute(testCase.SpectrumToDeconvolute, testCase.RangeToDeconvolute)
-                .OrderBy(i => i.MonoisotopicMass)
+                .OrderByDescending(i => i.Score)
                 .ToList();
             
             var topScoringResult = allResults.First(); 

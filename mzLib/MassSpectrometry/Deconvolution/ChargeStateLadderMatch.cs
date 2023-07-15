@@ -15,11 +15,44 @@ namespace MassSpectrometry
         public double EnvelopeScore { get; set; }
         public double Score { get; set; }
         public int MassIndex { get; set; }
-        public double MonoisotopicMass { get; set; }
+        public double MonoisotopicMass => MonoGuesses.Average();
+        public double StdDev => MonoGuesses.StandardDeviation(); 
         public double SequentialChargeStateScore { get; set; }
-        public List<double> MonoGuesses { get; set; }
-        public List<double> MonoErrors { get; set; }
+        public List<double> MonoGuesses { get; set; } = new();
+        public List<double> MonoErrors { get; set; } = new();
         public double PercentageMzValsMatched { get; set; }
+
+        internal void CalculateMatchError()
+        {
+            if (!MatchingMzPeaks.Any()) return;
+
+            var orderedMzVal = TheoreticalLadder.MzVals.OrderBy(x => x).ToArray();
+            foreach (var peak in MatchingMzPeaks)
+            {
+                int index = ChargeStateIdentifier.GetBucket(orderedMzVal, peak);
+                double ppmError = Math.Abs((peak - orderedMzVal[index]) / peak * 1E6);
+                MonoErrors.Add(ppmError);
+            }
+        }
+        
+
+        internal void RemoveHighErrorValues(double errorThreshold)
+        {
+            for (int i = 0; i < MonoErrors.Count; i++)
+            {
+                if (MonoErrors[i] > errorThreshold)
+                {
+                    // remove at monoErrors, Intensities, Charges
+                    // note that monoGuesses gets populated later
+                    MonoErrors.RemoveAt(i);
+                    MatchingMzPeaks.RemoveAt(i);
+                    IntensitiesOfMatchingPeaks.RemoveAt(i);
+                    ChargesOfMatchingPeaks.RemoveAt(i);
+                    i--; 
+                }
+            }
+        }
+
         /// <summary>
         /// Calculates the total fraction of intensity explained by the mz values that match to the theoretical envelope. 
         /// </summary>
@@ -48,7 +81,11 @@ namespace MassSpectrometry
                 .Where(i => Math.Abs(i) > 0.1).ToList();
             if (chargesList.Any())
             {
-                SequentialChargeStateScore = chargesList.Median();
+                var numberUniqueChargesWithCorrectChargeState = chargesList
+                    .Select(i => Math.Abs(i - 1d))
+                    .Count(i => i <= 0.1); 
+
+                SequentialChargeStateScore = (double)numberUniqueChargesWithCorrectChargeState / (double)chargesList.Count;
                 return;
             }
 

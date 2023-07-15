@@ -16,12 +16,17 @@ namespace MassSpectrometry
         public double MaximumMassDa { get; }
         public int MaxThreads { get; }
         public double DeltaMass { get; }
+        public double SequentialChargeStateDiff { get; }
+        public double EnvelopeScoreThresh { get; }
+        public double PercentageMatchedThresh { get; }
 
 
 
         public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm,
             int maxThreads, double minimumMass = 9500, double maximumMass = 60000, 
-            double envelopeThreshold = 0.6, double deltaMass = 1.003) : base()
+            double envelopeThreshold = 0.6, double deltaMass = 1.003, 
+            double sequentialChargeStateDiff = 1d, double envelopeScoreThresh = 0.8, 
+            double percentageMatchedThresh = 0d) : base()
         {
             MinCharge = minCharge;
             MaxCharge = maxCharge;
@@ -31,6 +36,9 @@ namespace MassSpectrometry
             MaxThreads = maxThreads;
             EnvelopeThreshold = envelopeThreshold;
             DeltaMass = deltaMass;
+            SequentialChargeStateDiff = sequentialChargeStateDiff;
+            EnvelopeScoreThresh = envelopeScoreThresh;
+            PercentageMatchedThresh = percentageMatchedThresh;
         }
     }
 }
