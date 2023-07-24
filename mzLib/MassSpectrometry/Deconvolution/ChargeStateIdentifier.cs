@@ -433,13 +433,13 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         match.RemoveHighErrorValues(ppmMatchThreshold);
         
         match.CompareTheoreticalNumberChargeStatesVsActual();
-        //if (match.PercentageMzValsMatched < DeconvolutionParams.PercentageMatchedThresh) return false;
+        if (match.PercentageMzValsMatched < DeconvolutionParams.PercentageMatchedThresh) return false;
 
         match.CalculateChargeStateScore();
-        //if (match.SequentialChargeStateScore < DeconvolutionParams.SequentialChargeStateDiff) return false;
+        if (match.SequentialChargeStateScore < DeconvolutionParams.SequentialChargeStateDiff) return false;
         
         match.CalculateEnvelopeScore();
-        //if (match.EnvelopeScore < DeconvolutionParams.EnvelopeScoreThresh) return false;
+        if (match.EnvelopeScore < DeconvolutionParams.EnvelopeScoreThresh) return false;
 
         for (int i = 0; i < match.MatchingMzPeaks.Count; i++)
         {
@@ -452,17 +452,8 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         }
 
         match.MonoGuesses = monoGuesses;
-        // use median because the center of the edges of the charge state distributions are likely to be 
-        // more error prone. 
-        
-     
-        match.ScoreByIntensityExplained(scan);
-        if (Math.Abs(match.SequentialChargeStateScore - 1) < 0.1
-            && match.PercentageMzValsMatched > DeconvolutionParams.PercentageMatchedThresh
-            && match.EnvelopeScore > DeconvolutionParams.EnvelopeScoreThresh)
-            return true;
 
-        return false;
+        return true; 
     }
 
     /// <summary>
