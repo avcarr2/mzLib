@@ -39,41 +39,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             .ToList();
     }
 
-    internal static IEnumerable<IsotopicEnvelope> RefineDeconvolutedResults(IList<IsotopicEnvelope> listEnvelopes)
-    {
-        HashSet<double> forbiddenRatios = new HashSet<double>(new DoubleEqualityComparer())
-        {
-            (double)1/3,
-            (double)1/2,
-            (double)2/3,
-            (double)4/5,
-            2d,
-            3d, 
-            4d
-        };
-        List<int> indexesToRemove = new();
-        
-        var ratios = listEnvelopes.Select(j => listEnvelopes[0].MonoisotopicMass / j.MonoisotopicMass).ToArray();
-        var chargesRatios = listEnvelopes.Select(j => (double)listEnvelopes[0].Charge / j.Charge).ToArray();
-        for (int i = 0; i < ratios.Length; i++)
-        {
-            if (forbiddenRatios.Contains(ratios[i])
-                && forbiddenRatios.Contains(chargesRatios[i]))
-            {
-                indexesToRemove.Add(i);
-            }
-        }
-
-        if (indexesToRemove.Any())
-        {
-            return listEnvelopes.Where((_, index) => !indexesToRemove.Contains(index));
-        }
-        else
-        {
-            return listEnvelopes; 
-        }
-
-    }
+    
     /// <summary>
     /// The function that actually does the work in deconvolution, optimized for speed. 
     /// </summary>
@@ -410,17 +376,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             envelope.Rescore(0);
         }
     }
-
-    internal static double GetTheoreticalMostAbundantMass(int massIndex)
-    {
-        return allMasses[massIndex][0];
-    }
-    internal static double GetTheoreticalMostIntenseMassWithDiff(int massIndex, double diff)
-    {
-        return allMasses[massIndex][0] + diff;
-    }
-
-
+    
     internal bool ScoreChargeStateLadderMatch(ChargeStateLadderMatch match, MzSpectrum scan, double ppmMatchThreshold)
     {
         GetMassIndex(match, scan);
@@ -518,67 +474,3 @@ public class DoubleEqualityComparer : IEqualityComparer<double>
         return Math.Round(value, 2).GetHashCode();
     }
 }
-
-
-//public static class IsotopicEnvelopeExtensions
-//{
-//    public static IDictionary<double, IEnumerable<IsotopicEnvelope>> ObserveAdjacentChargeStates(this IEnumerable<IsotopicEnvelope> listEnvelopes)
-//    {
-//        HashSet<double> massHashSet = new();
-//        var orderedMonoMasses = listEnvelopes.OrderBy(i => i.MonoisotopicMass)
-//            .Select(i => i.MonoisotopicMass)
-//            .ToArray();
-//        var orderedArrayOfEnvelopes = listEnvelopes
-//            .OrderBy(i => i.MonoisotopicMass)
-//            .ToList();
-
-//        ConcurrentDictionary<double, IEnumerable<IsotopicEnvelope>> dictChargeStateEnvelopes = new();
-
-//        int indexer = 0;
-//        List<IsotopicEnvelope> tempIsotopicEnvelope = new();
-//        while (indexer < orderedMonoMasses.Length)
-//        {
-            
-//            if (massHashSet.Contains(orderedMonoMasses[indexer]))
-//            {
-//                tempIsotopicEnvelope.Add(orderedArrayOfEnvelopes.ElementAt(indexer)); 
-//                indexer++; 
-//            }
-//            else
-//            {
-//                if (indexer == 0)
-//                {
-//                    massHashSet.Add(orderedMonoMasses[indexer]);
-//                    indexer++; 
-//                    continue;
-//                }
-
-//                dictChargeStateEnvelopes.TryAdd(orderedMonoMasses[indexer - 1], tempIsotopicEnvelope.DistinctBy(i => i.Charge));
-//                tempIsotopicEnvelope = new(); 
-
-//                massHashSet.Add(orderedMonoMasses[indexer]);
-//                tempIsotopicEnvelope.Add(orderedArrayOfEnvelopes.ElementAt(indexer));
-//                indexer++; 
-//            }
-
-//        }
-//        return dictChargeStateEnvelopes;
-//    }
-//}
-public class RefineEnvelopeRatio : IEqualityComparer<double>
-{
-    public bool Equals(double a, double b)
-    {
-        return Math.Round(a, 2) == Math.Round(b, 2);
-    }
-
-    public int GetHashCode(double value)
-    {
-        return Math.Round(value, 2).GetHashCode();
-    }
-}
-
-
-
-
-
