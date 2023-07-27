@@ -95,8 +95,30 @@ public class TestChargeStateIdentifier
         Assert.That(match.PercentageMzValsMatched, Is.EqualTo(0.5).Within(0.01));
         Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-2d));
     }
-    
+
     // testing the scoring function is going to be a pain in the ass. 
+    [Test]
+    public void TestIonTrapDecon()
+    {
+        string path = @"D:\DeconvolutionPaper\CytAlb_DIA.raw"; 
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.2, applyTrimmingToMs1:true);
+        var scan = MsDataFileReader.GetDataFile(path);
+        scan.InitiateDynamicConnection();
+        var spectrum = scan.GetOneBasedScanFromDynamicConnection(513, filteringParams); 
+
+        ChargeStateDeconvolutionParams deconParams = new(5, 60, 200, maxThreads: 19,
+            sequentialChargeStateDiff:0.9, envelopeScoreThresh: 0.9, envelopeThreshold:0.0);
+        ChargeStateIdentifier csi = new(deconParams);
+
+        Stopwatch watch = new();
+        watch.Start();
+        var results = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(800, 1200)).ToList();
+        watch.Stop();
+        Console.WriteLine(watch.ElapsedMilliseconds);
+        scan.CloseDynamicConnection();
+        WriteIsotopicEnvelopesToPlottingPoints(results, "");
+    }
+
 
     [Test]
     [TestCase(2,60)]
@@ -116,6 +138,7 @@ public class TestChargeStateIdentifier
         var results = csi.Deconvolute(scan, new MzRange(600, 640)).ToList();
         watch.Stop();
         Console.WriteLine(watch.ElapsedMilliseconds);
+        WriteIsotopicEnvelopesToPlottingPoints(results, "");
     }
     
     
