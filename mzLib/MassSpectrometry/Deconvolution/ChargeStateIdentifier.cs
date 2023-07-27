@@ -244,14 +244,10 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             .GroupBy(x => x.Value, new DoubleEqualityComparer())
             .ToDictionary(t => t.Key, 
                 t => t.Select(r => r.Key).Average())
-            .Select(i => i.Value); 
-        
-        //return concurrentHashSet
-        //    .Where(i => indexToKeepList.Contains(i.Value))
-        //    .Select(i => i.Key)
-        //    .Mean()
-
+            .Select(i => i.Value);
     }
+
+
     internal static int GetBucket(double[] array, double value)
     {
         int index = Array.BinarySearch(array, value);

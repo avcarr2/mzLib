@@ -8,31 +8,6 @@ using Chemistry;
 
 namespace MassSpectrometry
 {
-    public class MatchedPeak
-    {
-        public double Mz { get; set; }
-        public double Intensity { get; set; }
-        public double Charge { get; set; }
-        public double MatchError { get; set; }
-        public double NeutralMass => CalculateNeutralMass(); 
-        public MatchedPeak(double mz, double intensity, double charge)
-        {
-            Mz = mz;
-            Intensity = intensity;
-            Charge = charge;
-        }
-
-        public void CalculateMatchError(ChargeStateLadder theoreticalLadder)
-        {
-            int index = ChargeStateIdentifier.GetBucket(theoreticalLadder.MzVals, Mz); 
-            MatchError = Math.Abs((Mz - theoreticalLadder.MzVals[index]) / Mz * 1E6);
-        }
-
-        private double CalculateNeutralMass()
-        {
-            return Mz.ToMass((int)Math.Round(Charge)); 
-        }
-    }
     public class ChargeStateLadderMatch
     {
         public ChargeStateLadder TheoreticalLadder { get; set; }
@@ -69,20 +44,6 @@ namespace MassSpectrometry
             PeakList = peakList;
         }
         
-        /// <summary>
-        /// Calculates the total fraction of intensity explained by the mz values that match to the theoretical envelope. 
-        /// </summary>
-        /// <param name="spectrum"></param>
-        /// <param name="threshold"></param>
-        /// <returns></returns>
-        internal void ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.00001)
-        {
-            double spectrumThresholdVal = spectrum.YArray.Max() * threshold;
-            Score = PeakList
-                .Select(i => i.Intensity)
-                .Where(i => i >= spectrumThresholdVal)
-                .Sum();
-        }
         /// <summary>
         /// Calculates the average spacing between distinct charge states. If the charge states are sequential,
         /// then the charges will be close to -1. If the charge states correspond to a high harmonic, then the values of the charges states are going to be
