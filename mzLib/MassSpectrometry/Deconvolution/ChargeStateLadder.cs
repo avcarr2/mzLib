@@ -9,6 +9,7 @@ namespace MassSpectrometry
     public record struct ChargeStateLadder(double Mass, double[] MzVals)
     {
         public double Mass = Mass;
-        public double[] MzVals = MzVals;
+        // guarantees the order is from low m/z to high m/z. 
+        public double[] MzVals = MzVals.OrderBy(i => i).ToArray();
     }
 }

@@ -3,56 +3,72 @@ using MathNet.Numerics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Resources;
+using Chemistry;
 
 namespace MassSpectrometry
 {
+    public class MatchedPeak
+    {
+        public double Mz { get; set; }
+        public double Intensity { get; set; }
+        public double Charge { get; set; }
+        public double MatchError { get; set; }
+        public double NeutralMass => CalculateNeutralMass(); 
+        public MatchedPeak(double mz, double intensity, double charge)
+        {
+            Mz = mz;
+            Intensity = intensity;
+            Charge = charge;
+        }
+
+        public void CalculateMatchError(ChargeStateLadder theoreticalLadder)
+        {
+            int index = ChargeStateIdentifier.GetBucket(theoreticalLadder.MzVals, Mz); 
+            MatchError = Math.Abs((Mz - theoreticalLadder.MzVals[index]) / Mz * 1E6);
+        }
+
+        private double CalculateNeutralMass()
+        {
+            return Mz.ToMass((int)Math.Round(Charge)); 
+        }
+    }
     public class ChargeStateLadderMatch
     {
         public ChargeStateLadder TheoreticalLadder { get; set; }
-        public List<double> MatchingMzPeaks { get; set; }
-        public List<double> IntensitiesOfMatchingPeaks { get; set; }
-        public List<double> ChargesOfMatchingPeaks { get; set; }
+        public List<MatchedPeak> PeakList { get; set; }
         public double EnvelopeScore { get; set; }
         public double Score { get; set; }
         public int MassIndex { get; set; }
         public double MonoisotopicMass => MonoGuesses.Average();
         public double StdDev => MonoGuesses.StandardDeviation(); 
         public double SequentialChargeStateScore { get; set; }
-        public List<double> MonoGuesses { get; set; } = new();
-        public List<double> MonoErrors { get; set; } = new();
+        public List<double> MonoGuesses { get; set; }
+        public List<double> MonoErrors { get; set; } 
         public double PercentageMzValsMatched { get; set; }
 
-        internal void CalculateMatchError()
+        public ChargeStateLadderMatch(List<double> matchingMzPeaks, 
+            List<double> intensitiesOfMatching, List<double> chargesOfMatchingPeaks, 
+            ChargeStateLadder theoreticalLadder, double ppmMatchErrorTolerance)
         {
-            if (!MatchingMzPeaks.Any()) return;
+            MonoGuesses = new List<double>();
+            MonoErrors = new List<double>();
+            TheoreticalLadder = theoreticalLadder;
 
-            var orderedMzVal = TheoreticalLadder.MzVals.OrderBy(x => x).ToArray();
-            foreach (var peak in MatchingMzPeaks)
+            List<MatchedPeak> peakList = new();
+            for (int i = 0; i < matchingMzPeaks.Count; i++)
             {
-                int index = ChargeStateIdentifier.GetBucket(orderedMzVal, peak);
-                double ppmError = Math.Abs((peak - orderedMzVal[index]) / peak * 1E6);
-                MonoErrors.Add(ppmError);
-            }
-        }
-        
-
-        internal void RemoveHighErrorValues(double errorThreshold)
-        {
-            for (int i = 0; i < MonoErrors.Count; i++)
-            {
-                if (MonoErrors[i] > errorThreshold)
+                var peak = new MatchedPeak(matchingMzPeaks[i], intensitiesOfMatching[i],
+                    chargesOfMatchingPeaks[i]);
+                peak.CalculateMatchError(TheoreticalLadder);
+                if (Math.Abs(peak.MatchError) <= ppmMatchErrorTolerance)
                 {
-                    // remove at monoErrors, Intensities, Charges
-                    // note that monoGuesses gets populated later
-                    MonoErrors.RemoveAt(i);
-                    MatchingMzPeaks.RemoveAt(i);
-                    IntensitiesOfMatchingPeaks.RemoveAt(i);
-                    ChargesOfMatchingPeaks.RemoveAt(i);
-                    i--; 
+                    peakList.Add(peak);
                 }
             }
+            PeakList = peakList;
         }
-
+        
         /// <summary>
         /// Calculates the total fraction of intensity explained by the mz values that match to the theoretical envelope. 
         /// </summary>
@@ -62,7 +78,10 @@ namespace MassSpectrometry
         internal void ScoreByIntensityExplained(MzSpectrum spectrum, double threshold = 0.00001)
         {
             double spectrumThresholdVal = spectrum.YArray.Max() * threshold;
-            Score = IntensitiesOfMatchingPeaks.Where(i => i >= spectrumThresholdVal).Sum();
+            Score = PeakList
+                .Select(i => i.Intensity)
+                .Where(i => i >= spectrumThresholdVal)
+                .Sum();
         }
         /// <summary>
         /// Calculates the average spacing between distinct charge states. If the charge states are sequential,
@@ -72,8 +91,9 @@ namespace MassSpectrometry
         internal void CalculateChargeStateScore()
         {
 
-            var chargesList = ChargesOfMatchingPeaks
-                .Zip(ChargesOfMatchingPeaks.Skip(1), (x, y) => y - x)
+            var chargesList = PeakList
+                .Select(i => i.Charge)
+                .Zip(PeakList.Select(i => i.Charge).Skip(1), (x, y) => y - x)
                 // Where clause removes any diffs that are less than 0.1, which would indicate that the 
                 // peak matching tolerance was broad enough to grab more than one peak. However, because the 
                 // ppm tolerance for peak matching is so low, the difference between consecutive peaks should remain 
@@ -99,29 +119,32 @@ namespace MassSpectrometry
         /// </summary>
         internal void CalculateEnvelopeScore()
         {
-            if (IntensitiesOfMatchingPeaks.Count < 4)
+            if (PeakList.Select(i => i.Mz).Count() < 4)
             {
                 EnvelopeScore = 0d;
                 return;
             }
+            double[] chargesArray = PeakList.Select(i => i.Charge).ToArray();
+            double[] intensitiesArray = PeakList.Select(i => i.Intensity).ToArray();
+
             double[] coefficients =
-                Fit.Polynomial(ChargesOfMatchingPeaks.ToArray(), IntensitiesOfMatchingPeaks.ToArray(), 2);
+                Fit.Polynomial(chargesArray, intensitiesArray, 2);
             double c = coefficients[0];
             double b = coefficients[1];
             double a = coefficients[2];
 
             // calculate theoretical polynomial to get R^2. 
-            double[] theoreticalPolynom = ChargesOfMatchingPeaks
+            double[] theoreticalPolynom = chargesArray
                 .Select(x => c + b * x + a * x * x)
                 .ToArray();
             double sum1 = 0;
             double sum2 = 0;
-            double ymean = IntensitiesOfMatchingPeaks.Mean();
+            double yMean = intensitiesArray.Mean();
 
-            for (int i = 0; i < ChargesOfMatchingPeaks.Count; i++)
+            for (int i = 0; i < chargesArray.Length; i++)
             {
-                sum1 += Math.Pow(IntensitiesOfMatchingPeaks[i] - theoreticalPolynom[i], 2);
-                sum2 += Math.Pow(IntensitiesOfMatchingPeaks[i] - ymean, 2);
+                sum1 += Math.Pow(intensitiesArray[i] - theoreticalPolynom[i], 2);
+                sum2 += Math.Pow(intensitiesArray[i] - yMean, 2);
             }
 
             EnvelopeScore = 1 - sum1 / sum2;
@@ -133,7 +156,7 @@ namespace MassSpectrometry
         /// <returns></returns>
         internal void CompareTheoreticalNumberChargeStatesVsActual()
         {
-            int integerUniqueChargeValuesLength = ChargesOfMatchingPeaks
+            int integerUniqueChargeValuesLength = PeakList.Select(i => i.Charge)
                 .Select(i => (int)Math.Round(i))
                 .Distinct()
                 .Count();
@@ -141,5 +164,4 @@ namespace MassSpectrometry
             PercentageMzValsMatched = (double)integerUniqueChargeValuesLength / (double)TheoreticalLadder.MzVals.Length;
         }
     }
-
 }
