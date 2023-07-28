@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using MassSpectrometry.MzSpectra;
@@ -14,6 +15,7 @@ using Chemistry;
 using Easy.Common.Extensions;
 using Easy.Common.Interfaces;
 using MathNet.Numerics.Statistics;
+
 
 
 namespace MassSpectrometry;
@@ -53,16 +55,15 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         // And charge states will get added to the isotopic envelope object. 
         // 
         ConcurrentDictionary<double, List<IsotopicEnvelope>> ieHashSet = new(new DoubleEqualityComparer());
-        double[] masses = GenerateMassesIndex(DeconvolutionParams.MinimumMassDa, DeconvolutionParams.MaximumMassDa,
-            DeconvolutionParams.PeakMatchPpmTolerance); 
+       
 
         var output = PreFilterMzVals(scan.XArray,
             scan.YArray, DeconvolutionParams.MinCharge, 
             DeconvolutionParams.MaxCharge,
             DeconvolutionParams.MinimumMassDa,
-            DeconvolutionParams.MaximumMassDa,
-            masses
-            );
+            DeconvolutionParams.MaximumMassDa, 
+            DeconvolutionParams.DeltaMass, 
+            DeconvolutionParams.PreFilterDeconvolutionType);
 
         var ladder = CreateChargeStateLadders(output, DeconvolutionParams.MinCharge, DeconvolutionParams.MaxCharge,
             scan.FirstX!.Value, scan.LastX!.Value);
@@ -96,11 +97,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     {
         //TODO: Needs to be refactored to remove side effects. 
         this.spectrum = scan;
-        List<double> chargesList = match.PeakList.Select(i => i.Charge).ToList(); 
+        List<double> chargesList = match.PeakList.Select(i => i.Charge).ToList();
+        List<double> mzList = match.PeakList.Select(i => i.Mz).ToList(); 
         for (int i = 0; i < chargesList.Count; i++)
         {
             int charge = (int)Math.Round(chargesList[i]);
-            if (range.Contains(chargesList[i]))
+            if (range.Contains(mzList[i]))
             {
                 double[] neutralXArray = scan.XArray.Select(j => j.ToMass(charge)).ToArray();
 
@@ -141,7 +143,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     /// <param name="maxMass"></param>
     /// <param name="ppmTolerance"></param>
     /// <returns></returns>
-    internal static double[] GenerateMassesIndex(double minMass, double maxMass, double ppmTolerance = 15)
+    internal static double[] GenerateMassesIndexMann(double minMass, double maxMass, double ppmTolerance = 15)
     {
         List<double> masses = new(); 
         // put mass in the center of the ppm error range. 
@@ -151,6 +153,19 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
         while (value < maxMass)
         {
             double newValue = value * (epsilon + 1)/(1 - epsilon);
+            masses.Add(newValue);
+            value = newValue;
+        }
+        return masses.ToArray();
+    }
+
+    internal static double[] GenerateMassesIndexMult(double minMass, double maxMass, double mzSpacing)
+    {
+        List<double> masses = new();
+        double value = minMass;
+        while (value < maxMass)
+        {
+            double newValue = value + mzSpacing;
             masses.Add(newValue);
             value = newValue;
         }
@@ -189,19 +204,80 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     }
 
     internal static IEnumerable<double> PreFilterMzVals(double[] mzVals, double[] intensityArray, int minCharge, 
-        int maxCharge, double minMass, double maxMass, double[] masses, double ppmMatchTolerance = 15)
+        int maxCharge, double minMass, double maxMass, double spacing,
+        PreFilterDeconvolutionType deconType = PreFilterDeconvolutionType.Mann)
     {
         ConcurrentDictionary<double, int> concurrentHashSet = new(new DoubleEqualityComparer());
         ConcurrentDictionary<int, double> cumulativeIntensityDict = new();
-        for (int i = 0; i < masses.Length; i++)
-        {
-            cumulativeIntensityDict.TryAdd(i, 0d); 
-        }
         
+        
+        
+        //double medianCounts = ArrayStatistics.Mean(cumulativeIntensities.Where(i => i >= 1.1).ToArray());
+        // return indexes where counts are bigger than the median. 
+        HashSet<int> indexToKeepList = new();
 
-        // contains the neutral mass and the index of the neutral mass
-        
-        
+
+        double[] masses = CreateMassesArray(deconType, minMass, maxMass, spacing);
+        double[] cumulativeIntensityArray = new double[masses.Length];
+
+        switch (deconType)
+        {
+            case PreFilterDeconvolutionType.Mann:
+                for (int i = 0; i < masses.Length; i++)
+                {
+                    cumulativeIntensityDict.TryAdd(i, 0d);
+                }
+                MannDeconvolution(mzVals, intensityArray, masses, minCharge, maxCharge, minMass, maxMass,
+                    concurrentHashSet, cumulativeIntensityDict, out cumulativeIntensityArray);
+                break;
+
+            case PreFilterDeconvolutionType.Multiplicative:
+                for (int i = 0; i < masses.Length; i++)
+                {
+                    cumulativeIntensityDict.TryAdd(i, 1d);
+                }
+                MultiplicativeCorrAlgoDecon(mzVals, intensityArray, masses, minCharge, maxCharge, minMass, maxMass,
+                    concurrentHashSet, cumulativeIntensityDict, out cumulativeIntensityArray);
+                break;
+        }
+
+
+        var meanVariance = ArrayStatistics.QuantileInplace(cumulativeIntensityArray.Where(z => z > 0).ToArray(), 0.99);
+        double threshold = meanVariance;
+
+
+        for (int i = 0; i < cumulativeIntensityArray.Length; i++)
+        {
+            if (cumulativeIntensityArray[i] >= threshold)
+            {
+                indexToKeepList.Add(i); 
+            }
+        }
+        // Define the threshold value as mean + 1.5 * standard deviation of the intensity values
+
+
+        return concurrentHashSet
+            .Where(i => indexToKeepList.Contains((i.Value)))
+            .GroupBy(x => x.Value, new DoubleEqualityComparer())
+            .ToDictionary(t => t.Key, 
+                t => t.Select(r => r.Key).Average())
+            .Select(i => i.Value);
+    }
+
+    internal static double[] CreateMassesArray(PreFilterDeconvolutionType deconType, double minMass, double maxMass, double spacing)
+    {
+        var masses = deconType switch
+        {
+            PreFilterDeconvolutionType.Mann => GenerateMassesIndexMann(minMass, maxMass, spacing),
+            PreFilterDeconvolutionType.Multiplicative => GenerateMassesIndexMult(minMass, maxMass, spacing)
+        };
+        return masses;
+    }
+
+    internal static void MannDeconvolution(double[] mzVals, double[] intensityArray, double[] masses, int minCharge, int maxCharge,
+        double minMass, double maxMass, ConcurrentDictionary<double, int> concurrentHashSet, 
+        ConcurrentDictionary<int, double> cumulativeIntensityDict, out double[] neutralMassIntensityArray)
+    {
         Parallel.For(0, mzVals.Length, j =>
         {
             for (int i = maxCharge; i >= minCharge; i--)
@@ -222,31 +298,47 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
             }
         });
 
-        // Define the threshold value as mean + 1.5 * standard deviation of the intensity values
-        var cumulativeIntensityArray = cumulativeIntensityDict.Values.ToArray();
-        var meanVariance = ArrayStatistics.QuantileInplace(cumulativeIntensityArray.Where(z => z > 0).ToArray(), 0.5); 
-        double threshold = meanVariance;
+        neutralMassIntensityArray = cumulativeIntensityDict.OrderBy(i => i.Key)
+            .Select(i => i.Value).ToArray();
+    }
 
-        //double medianCounts = ArrayStatistics.Mean(cumulativeIntensities.Where(i => i >= 1.1).ToArray());
-        // return indexes where counts are bigger than the median. 
-        HashSet<int> indexToKeepList = new();
-        
-        for (int i = 0; i < cumulativeIntensityArray.Length; i++)
+    internal static void MultiplicativeCorrAlgoDecon(double[] mzVals, double[] intensityArray, double[] masses, int minCharge, int maxCharge,
+        double minMass, double maxMass, IDictionary<double, int> concurrentHashSet,
+        IDictionary<int, double> cumulativeIntensityDict, out double[] neutralMassIntensityArray)
+    {
+        double scanRmsIntensity = intensityArray.RootMeanSquare();
+
+        int[] massesLengthTrackingArray = new int[masses.Length];
+
+        for (int j = 0; j < mzVals.Length; j++)
         {
-            if (cumulativeIntensityArray[i] >= threshold)
+            for (int i = maxCharge; i >= minCharge; i--)
             {
-                indexToKeepList.Add(i); 
+                var testMass = mzVals[j].ToMass(i);
+                if (testMass > maxMass || testMass < minMass)
+                {
+                    continue;
+                }
+
+                int index = GetBucket(masses, testMass);
+                concurrentHashSet.TryAdd(testMass, index);
+
+                cumulativeIntensityDict[index] *= intensityArray[j];
+                massesLengthTrackingArray[index]++;
             }
         }
 
-        return concurrentHashSet
-            .Where(i => indexToKeepList.Contains((i.Value)))
-            .GroupBy(x => x.Value, new DoubleEqualityComparer())
-            .ToDictionary(t => t.Key, 
-                t => t.Select(r => r.Key).Average())
-            .Select(i => i.Value);
-    }
+        // apply the rms correction, which is sum of intensities / rms^n, where n is the number of points in the calculation
+        var orderedIntensityDict = cumulativeIntensityDict
+            .OrderBy(i => i.Key)
+            .ToDictionary(i => i.Key, i => i.Value); 
+        for (int i = 0; i < massesLengthTrackingArray.Length; i++)
+        {
+            orderedIntensityDict[i] /= Math.Pow(scanRmsIntensity, massesLengthTrackingArray[i]);
+        }
 
+        neutralMassIntensityArray = orderedIntensityDict.Values.Select(i => i - 1d).ToArray();
+    }
 
     internal static int GetBucket(double[] array, double value)
     {
@@ -388,23 +480,7 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
     {
         // binary search to get the mass index and assign it to match. 
         this.spectrum = scan;
-        // get the index of the averagine model. 
-        int massIndex = Array.BinarySearch(mostIntenseMasses, match.TheoreticalLadder.Mass);
-        if (massIndex < 0)
-        {
-            massIndex = ~massIndex;
-        }
-
-        if (massIndex >= mostIntenseMasses.Length)
-        {
-            massIndex = mostIntenseMasses.Length - 1;
-        }
-
-        if (massIndex != 0 && mostIntenseMasses[massIndex] - match.TheoreticalLadder.Mass >
-            match.TheoreticalLadder.Mass - mostIntenseMasses[massIndex - 1])
-        {
-            massIndex--;
-        }
+        int massIndex = GetBucket(mostIntenseMasses, match.TheoreticalLadder.Mass); 
         match.MassIndex = massIndex;
     }
     /// <summary>
@@ -427,6 +503,12 @@ public class ChargeStateIdentifier : ClassicDeconvolutionAlgorithm
 
         return null; 
     }
+}
+
+public enum PreFilterDeconvolutionType
+{
+    Mann, 
+    Multiplicative
 }
 
 public class DoubleEqualityComparer : IEqualityComparer<double>

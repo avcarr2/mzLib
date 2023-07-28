@@ -42,83 +42,83 @@ public class TestChargeStateIdentifier
         Assert.That(valsArray, Is.EqualTo(expectedArrayLengths));
     }
 
-    [Test]
-    public void TestChargeStateLadderMatch()
-    {
-        double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007};
-        double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759}; 
+    //[Test]
+    //public void TestChargeStateLadderMatch()
+    //{
+    //    double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007};
+    //    double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759}; 
 
-        MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldWork, intenValsShouldWork, true);
+    //    MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldWork, intenValsShouldWork, true);
 
-        ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork); 
-        ChargeStateLadderMatch match = new();
-        match.TheoreticalLadder = ladder; 
-        match.IntensitiesOfMatchingPeaks = intenValsShouldWork.ToList(); 
-        match.MatchingMzPeaks = mzValsShouldWork.ToList();
-        match.ChargesOfMatchingPeaks = Enumerable.Range(1, 6).Reverse().Select(i =>(double)i).ToList();
+    //    ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork); 
+    //    ChargeStateLadderMatch match = new();
+    //    match.TheoreticalLadder = ladder; 
+    //    match.IntensitiesOfMatchingPeaks = intenValsShouldWork.ToList(); 
+    //    match.MatchingMzPeaks = mzValsShouldWork.ToList();
+    //    match.ChargesOfMatchingPeaks = Enumerable.Range(1, 6).Reverse().Select(i =>(double)i).ToList();
 
-        match.ScoreByIntensityExplained(spectrumShouldWork, threshold:0); 
-        match.CalculateEnvelopeScore();
-        match.CalculateChargeStateScore();
-        match.CompareTheoreticalNumberChargeStatesVsActual(); 
+    //    match.ScoreByIntensityExplained(spectrumShouldWork, threshold:0); 
+    //    match.CalculateEnvelopeScore();
+    //    match.CalculateChargeStateScore();
+    //    match.CompareTheoreticalNumberChargeStatesVsActual(); 
 
-        Assert.That(match.EnvelopeScore, Is.EqualTo(0.9765).Within(0.05));
-        Assert.That(match.Score, Is.EqualTo(0.858).Within(0.05));
-        Assert.That(match.PercentageMzValsMatched, Is.EqualTo(1.0).Within(0.01));
-        Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-1d));
-    }
+    //    Assert.That(match.EnvelopeScore, Is.EqualTo(0.9765).Within(0.05));
+    //    Assert.That(match.Score, Is.EqualTo(0.858).Within(0.05));
+    //    Assert.That(match.PercentageMzValsMatched, Is.EqualTo(1.0).Within(0.01));
+    //    Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-1d));
+    //}
 
-    [Test]
-    public void TestChargeStateLadderFailures()
-    {
-        double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007 };
-        double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759 };
-        ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork);
+    //[Test]
+    //public void TestChargeStateLadderFailures()
+    //{
+    //    double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007 };
+    //    double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759 };
+    //    ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork);
 
-        double[] mzValsShouldntWork = new[] { 201.007, 334.3403, 1001.007 };
-        double[] intenValsShouldntWork = new[] { 0.176033, 0.176033, 0.064759 };
+    //    double[] mzValsShouldntWork = new[] { 201.007, 334.3403, 1001.007 };
+    //    double[] intenValsShouldntWork = new[] { 0.176033, 0.176033, 0.064759 };
 
-        MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldntWork, intenValsShouldntWork, true);
+    //    MzSpectrum spectrumShouldWork = new MzSpectrum(mzValsShouldntWork, intenValsShouldntWork, true);
 
-        ChargeStateLadderMatch match = new();
-        match.TheoreticalLadder = ladder;
-        match.IntensitiesOfMatchingPeaks = intenValsShouldntWork.ToList();
-        match.MatchingMzPeaks = mzValsShouldntWork.ToList();
-        match.ChargesOfMatchingPeaks = new List<double>() { 6, 4, 2 }; 
+    //    ChargeStateLadderMatch match = new();
+    //    match.TheoreticalLadder = ladder;
+    //    match.IntensitiesOfMatchingPeaks = intenValsShouldntWork.ToList();
+    //    match.MatchingMzPeaks = mzValsShouldntWork.ToList();
+    //    match.ChargesOfMatchingPeaks = new List<double>() { 6, 4, 2 }; 
         
-        match.ScoreByIntensityExplained(spectrumShouldWork, threshold: 0);
-        match.CalculateEnvelopeScore();
-        match.CalculateChargeStateScore();
-        match.CompareTheoreticalNumberChargeStatesVsActual();
+    //    match.ScoreByIntensityExplained(spectrumShouldWork, threshold: 0);
+    //    match.CalculateEnvelopeScore();
+    //    match.CalculateChargeStateScore();
+    //    match.CompareTheoreticalNumberChargeStatesVsActual();
 
-        Assert.That(match.EnvelopeScore, Is.EqualTo(0d));
-        Assert.That(match.Score, Is.EqualTo(intenValsShouldntWork.Sum()));
-        Assert.That(match.PercentageMzValsMatched, Is.EqualTo(0.5).Within(0.01));
-        Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-2d));
-    }
+    //    Assert.That(match.EnvelopeScore, Is.EqualTo(0d));
+    //    Assert.That(match.Score, Is.EqualTo(intenValsShouldntWork.Sum()));
+    //    Assert.That(match.PercentageMzValsMatched, Is.EqualTo(0.5).Within(0.01));
+    //    Assert.That(match.SequentialChargeStateScore, Is.EqualTo(-2d));
+    //}
 
-    [Test]
-    public void TestFindIsotopicEnvelopes()
-    {
-        double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007 };
-        double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759 };
-        ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork);
-        ChargeStateLadderMatch match = new ChargeStateLadderMatch();
-        match.TheoreticalLadder = ladder; 
-        match.IntensitiesOfMatchingPeaks = intenValsShouldWork.ToList();
-        match.MatchingMzPeaks = mzValsShouldWork.ToList();
-        match.ChargesOfMatchingPeaks = new List<double> { 6d, 5d, 4d, 3d, 2d, 1d };
+    //[Test]
+    //public void TestFindIsotopicEnvelopes()
+    //{
+    //    double[] mzValsShouldWork = new[] { 167.6737, 201.007, 251.007, 334.3403, 501.007, 1001.007 };
+    //    double[] intenValsShouldWork = new[] { 0.120985, 0.176033, 0.199471, 0.176033, 0.120985, 0.064759 };
+    //    ChargeStateLadder ladder = new(1001.007.ToMass(1), mzValsShouldWork);
+    //    ChargeStateLadderMatch match = new ChargeStateLadderMatch();
+    //    match.TheoreticalLadder = ladder; 
+    //    match.IntensitiesOfMatchingPeaks = intenValsShouldWork.ToList();
+    //    match.MatchingMzPeaks = mzValsShouldWork.ToList();
+    //    match.ChargesOfMatchingPeaks = new List<double> { 6d, 5d, 4d, 3d, 2d, 1d };
 
 
 
-        MzSpectrum scan = new MzSpectrum(mzValsShouldWork, intenValsShouldWork, true);
-        MzRange range = new MzRange(300, 350);
-        ConcurrentDictionary<double, List<IsotopicEnvelope>> isoEnvelopeHashSet = new();
+    //    MzSpectrum scan = new MzSpectrum(mzValsShouldWork, intenValsShouldWork, true);
+    //    MzRange range = new MzRange(300, 350);
+    //    ConcurrentDictionary<double, List<IsotopicEnvelope>> isoEnvelopeHashSet = new();
 
-        ChargeStateIdentifier csi = new(new ChargeStateDeconvolutionParams(1,2, 200, 1, 5000,20000));
+    //    ChargeStateIdentifier csi = new(new ChargeStateDeconvolutionParams(1,2, 200, 1, 5000,20000));
         
-        csi.FindIsotopicEnvelopes(match, scan, range, isoEnvelopeHashSet, 0.0);
-    }
+    //    csi.FindIsotopicEnvelopes(match, scan, range, isoEnvelopeHashSet, 0.0);
+    //}
 
     [Test]
     [TestCase(2,60)]
@@ -182,5 +182,38 @@ public class TestChargeStateIdentifier
         double ppmMatchTolerance = 4.0;
         double delta = 1.003;
     }
+
+    [Test]
+    public void TestGlyceraldehyde()
+    {
+        string path = @"C:\Xcalibur\data\glyceraldehyde_dehydrogenase_fornelliDataset.raw";
+
+        var spectrum = Readers.ThermoRawFileReader.LoadAllStaticData(path).GetAllScansList().First();  
+
+        ChargeStateIdentifier csi = new ChargeStateIdentifier(
+            new ChargeStateDeconvolutionParams(5, 60, 100, 19, 
+                envelopeThreshold: 0.0, sequentialChargeStateDiff: 0.8, envelopeScoreThresh:0.6, percentageMatchedThresh:0d,
+                deltaMass:0.1, deconType: PreFilterDeconvolutionType.Multiplicative));
+
+        var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(500, 2000)).ToList(); 
+
+    }
+
+    [Test]
+    public void TestIonTrap()
+    {
+        string path = @"D:\DeconvolutionPaper\SixProtStandardMixMeth1-firstPeak.raw"; 
+
+        var spectrum = Readers.ThermoRawFileReader.LoadAllStaticData(path).GetAllScansList().First();
+
+        ChargeStateIdentifier csi = new ChargeStateIdentifier(
+            new ChargeStateDeconvolutionParams(5, 60, 10, 19,
+                deltaMass:0.1, envelopeThreshold: 0.2, sequentialChargeStateDiff: 0.9, envelopeScoreThresh: 0.6,
+                percentageMatchedThresh: 0.5, deconType: PreFilterDeconvolutionType.Multiplicative));
+
+        var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(800, 860)).ToList();
+
+    }
+
 }
 

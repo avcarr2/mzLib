@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,14 +20,14 @@ namespace MassSpectrometry
         public double SequentialChargeStateDiff { get; }
         public double EnvelopeScoreThresh { get; }
         public double PercentageMatchedThresh { get; }
-
+        public PreFilterDeconvolutionType PreFilterDeconvolutionType { get; }
 
 
         public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm,
             int maxThreads, double minimumMass = 9500, double maximumMass = 60000, 
             double envelopeThreshold = 0.6, double deltaMass = 1.003, 
             double sequentialChargeStateDiff = 1d, double envelopeScoreThresh = 0.8, 
-            double percentageMatchedThresh = 0d) : base()
+            double percentageMatchedThresh = 0d, PreFilterDeconvolutionType deconType = PreFilterDeconvolutionType.Mann) : base()
         {
             MinCharge = minCharge;
             MaxCharge = maxCharge;
@@ -39,6 +40,7 @@ namespace MassSpectrometry
             SequentialChargeStateDiff = sequentialChargeStateDiff;
             EnvelopeScoreThresh = envelopeScoreThresh;
             PercentageMatchedThresh = percentageMatchedThresh;
+            PreFilterDeconvolutionType = deconType; 
         }
     }
 }

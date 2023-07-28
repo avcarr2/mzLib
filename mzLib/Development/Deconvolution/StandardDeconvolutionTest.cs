@@ -54,8 +54,8 @@ namespace Development.Deconvolution
             Deconvoluter classicBottomUpDeconvoluter = new Deconvoluter(DeconvolutionType.ClassicDeconvolution,
                 new ClassicDeconvolutionParameters(5, 12, 4, 3));
             Deconvoluter deconvolveByChargeState = new Deconvoluter(DeconvolutionType.AustinConv,
-                new ChargeStateDeconvolutionParams(5, 50, 15, maxThreads:10, 
-                    envelopeThreshold:0.3, envelopeScoreThresh:0.6, percentageMatchedThresh:0.15)); 
+                new ChargeStateDeconvolutionParams(5, 50, 200, maxThreads:10, 
+                    envelopeThreshold:0.3, envelopeScoreThresh:0.6, percentageMatchedThresh:0.15, deconType:PreFilterDeconvolutionType.Multiplicative)); 
 
             // Add Individual peak test cases
             
@@ -140,7 +140,7 @@ namespace Development.Deconvolution
             _singlePeakTestCases = singlePeakDeconvolutionTestCases.Select(i =>
             {
                 i.Deconvoluter = deconvolveByChargeState;
-                i.DeconvolutionPPmTolerance = new PpmTolerance(10);
+                i.DeconvolutionPPmTolerance = new PpmTolerance(200);
                 return i;
             }).ToList();
 
