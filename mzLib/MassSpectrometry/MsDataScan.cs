@@ -59,12 +59,12 @@ namespace MassSpectrometry
         public MzSpectrum MassSpectrum { get; protected set; }
 
         public int OneBasedScanNumber { get; private set; }
-        public int MsnOrder { get; }
-        public double RetentionTime { get; }
+        public int MsnOrder { get; set; }
+        public double RetentionTime { get; set; }
         public Polarity Polarity { get; }
         public MZAnalyzerType MzAnalyzer { get; }
         public MzRange ScanWindowRange { get; }
-        public string ScanFilter { get; }
+        public string ScanFilter { get; set; }
         public string NativeId { get; private set; }
         public bool IsCentroid { get; }
         public double TotalIonCurrent { get; }
