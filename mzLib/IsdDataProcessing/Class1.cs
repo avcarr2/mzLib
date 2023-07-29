@@ -1,4 +1,5 @@
-﻿using Easy.Common.Interfaces;
+﻿using System.Diagnostics;
+using Easy.Common.Interfaces;
 using MassSpectrometry;
 
 namespace IsdDataProcessing
@@ -19,6 +20,11 @@ namespace IsdDataProcessing
             IEnumerable<MsDataScan> ms2s)
         {
             return ms1s.Zip(ms2s, (f, s) => new[] { f, s }).SelectMany(f => f); 
+        }
+
+        public static IEnumerable<MsDataScan> UpdateMs2MetaData(this IEnumerable<MsDataScan> scansList)
+        {
+
         }
     }
 }
