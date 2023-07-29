@@ -23,7 +23,8 @@ namespace Test
             var itScans = scansFull.GetIonTrapScans();
             // skip the first isfScan. Then interleave. 
             var isfScans = scansFull.GetMs1SidScans().Skip(1);
-            var interleaved = itScans.InterleaveScans(isfScans)
+            var interleaved = itScans.InterleaveScans(isfScans); 
+
 
         }
     }
