@@ -80,7 +80,7 @@ namespace MassSpectrometry
         /// </summary>
         internal void CalculateEnvelopeScore()
         {
-            if (PeakList.Select(i => i.Mz).Count() < 4)
+            if (PeakList.Select(i => i.Mz).Count() < 3)
             {
                 EnvelopeScore = 0d;
                 return;

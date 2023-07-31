@@ -17,30 +17,30 @@ using System.Threading.Tasks;
 using System.Windows.Documents;
 using System.Windows.Input;
 using MathNet.Numerics.Statistics;
-using OpenMcdf.Extensions;
 using OxyPlot.Axes;
+using OxyPlot.Series;
 
 
 namespace Test;
 public class TestChargeStateIdentifier
 {
-    [Test]
-    public void TestCreateChargeStateLadders()
-    {
-        ChargeStateDeconvolutionParams deconParams = new(1, 5, 5, maxThreads:12);
-        ChargeStateIdentifier csi = new(deconParams);
-        double[] testMzVals = new[] { 1000.0 }; 
+    //[Test]
+    //public void TestCreateChargeStateLadders()
+    //{
+    //    ChargeStateDeconvolutionParams deconParams = new(1, 5, 5, maxThreads:12);
+    //    ChargeStateIdentifier csi = new(deconParams);
+    //    double[] testMzVals = new[] { 1000.0 }; 
 
-        IEnumerable<ChargeStateLadder> ladders = ChargeStateIdentifier.CreateChargeStateLadders(0, testMzVals, 
-            deconParams.MinCharge, deconParams.MaxCharge, 
-            500d, 2000d);
-        var massArrayTest = ladders.Select(i => i.Mass).ToArray();
-        var massArrayExpected = new[] { 998.9927, 1997.98545, 2996.9782, 3995.97089, 4994.96361 };
-        Assert.That(massArrayExpected, Is.EqualTo(massArrayTest).Within(0.01));
-        var valsArray = ladders.Select(i => i.MzVals.Length).ToArray();
-        var expectedArrayLengths = new int[] { 2, 4, 4, 4, 3 };
-        Assert.That(valsArray, Is.EqualTo(expectedArrayLengths));
-    }
+    //    IEnumerable<ChargeStateLadder> ladders = ChargeStateIdentifier.CreateChargeStateLadders(0, testMzVals, 
+    //        deconParams.MinCharge, deconParams.MaxCharge, 
+    //        500d, 2000d);
+    //    var massArrayTest = ladders.Select(i => i.Mass).ToArray();
+    //    var massArrayExpected = new[] { 998.9927, 1997.98545, 2996.9782, 3995.97089, 4994.96361 };
+    //    Assert.That(massArrayExpected, Is.EqualTo(massArrayTest).Within(0.01));
+    //    var valsArray = ladders.Select(i => i.MzVals.Length).ToArray();
+    //    var expectedArrayLengths = new int[] { 2, 4, 4, 4, 3 };
+    //    Assert.That(valsArray, Is.EqualTo(expectedArrayLengths));
+    //}
 
     //[Test]
     //public void TestChargeStateLadderMatch()
@@ -120,84 +120,84 @@ public class TestChargeStateIdentifier
     //    csi.FindIsotopicEnvelopes(match, scan, range, isoEnvelopeHashSet, 0.0);
     //}
 
-    [Test]
-    [TestCase(2,60)]
-    [Repeat(5)]
-    public void TestDeconvolution(int minCharge, int maxCharge)
-    {
-        string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
-            "chargeStateDeconTest3raw.raw");
-        FilteringParams filteringParams = new FilteringParams();
-        var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
+    //[Test]
+    //[TestCase(2,60)]
+    //[Repeat(5)]
+    //public void TestDeconvolution(int minCharge, int maxCharge)
+    //{
+    //    string path = Path.Combine(TestContext.CurrentContext.TestDirectory, "DataFiles",
+    //        "chargeStateDeconTest3raw.raw");
+    //    FilteringParams filteringParams = new FilteringParams();
+    //    var scan = MsDataFileReader.GetDataFile(path).LoadAllStaticData(filteringParams).GetAllScansList().First().MassSpectrum;
 
-        ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5, maxThreads:19); 
-        ChargeStateIdentifier csi = new(deconParams);
+    //    ChargeStateDeconvolutionParams deconParams = new(minCharge, maxCharge, 5, maxThreads:19); 
+    //    ChargeStateIdentifier csi = new(deconParams);
 
-        Stopwatch watch = new(); 
-        watch.Start();
-        var results = csi.Deconvolute(scan, new MzRange(600, 640)).ToList();
-        watch.Stop();
-        Console.WriteLine(watch.ElapsedMilliseconds);
-    }
+    //    Stopwatch watch = new(); 
+    //    watch.Start();
+    //    var results = csi.Deconvolute(scan, new MzRange(600, 640)).ToList();
+    //    watch.Stop();
+    //    Console.WriteLine(watch.ElapsedMilliseconds);
+    //}
     
-    [Test]
-    public void TestNonUniqueChargeStateLadders()
-    {
-        double[] testMzAxis = new[]
-            { 1001.007,953.387952380952,910.097909090909,870.572217391304,834.340333333333 };
-        double[] testIntAxis = new[] {
-            1000d, 2500d, 3500d, 2500d, 1000d };
-        MzSpectrum testSpectra = new MzSpectrum(testMzAxis, testIntAxis, true);
-        ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15);
-        ChargeStateIdentifier csi = new(deconParams);
+    //[Test]
+    //public void TestNonUniqueChargeStateLadders()
+    //{
+    //    double[] testMzAxis = new[]
+    //        { 1001.007,953.387952380952,910.097909090909,870.572217391304,834.340333333333 };
+    //    double[] testIntAxis = new[] {
+    //        1000d, 2500d, 3500d, 2500d, 1000d };
+    //    MzSpectrum testSpectra = new MzSpectrum(testMzAxis, testIntAxis, true);
+    //    ChargeStateDeconvolutionParams deconParams = new(5, 30, 5, maxThreads: 15);
+    //    ChargeStateIdentifier csi = new(deconParams);
 
-        List<List<ChargeStateLadder>> laddersList = new(); 
-        for (int i = 0; i < testMzAxis.Length; i++)
-        {
-            var tempList = ChargeStateIdentifier.CreateChargeStateLadders(i, testMzAxis, deconParams.MinCharge, deconParams.MaxCharge,
-                500, 2000).ToList(); 
-            laddersList.Add(tempList);
-        }
+    //    List<List<ChargeStateLadder>> laddersList = new(); 
+    //    for (int i = 0; i < testMzAxis.Length; i++)
+    //    {
+    //        var tempList = ChargeStateIdentifier.CreateChargeStateLadders(i, testMzAxis, deconParams.MinCharge, deconParams.MaxCharge,
+    //            500, 2000).ToList(); 
+    //        laddersList.Add(tempList);
+    //    }
 
-        var masses = laddersList.Select(i => i.Select(j => j.Mass));
-        foreach (var mass in masses.GroupBy(i => i))
-        {
-            if (mass.Count() > 1)
-            {
-                Console.WriteLine(mass);
-            }
-        }
-    }
+    //    var masses = laddersList.Select(i => i.Select(j => j.Mass));
+    //    foreach (var mass in masses.GroupBy(i => i))
+    //    {
+    //        if (mass.Count() > 1)
+    //        {
+    //            Console.WriteLine(mass);
+    //        }
+    //    }
+    //}
 
-    [Test]
-    public void TestPreFiltering()
-    {
-        double[] testMzAxis = new[]
-            { 1001.007, 953.387952380952, 910.097909090909, 870.572217391304, 834.340333333333 };
+    //[Test]
+    //public void TestPreFiltering()
+    //{
+    //    double[] testMzAxis = new[]
+    //        { 1001.007, 953.387952380952, 910.097909090909, 870.572217391304, 834.340333333333 };
 
-        int minCharge = 5;
-        int maxCharge = 30;
-        double minMass = 10000;
-        double maxMass = 30000;
-        double ppmMatchTolerance = 4.0;
-        double delta = 1.003;
-    }
+    //    int minCharge = 5;
+    //    int maxCharge = 30;
+    //    double minMass = 10000;
+    //    double maxMass = 30000;
+    //    double ppmMatchTolerance = 4.0;
+    //    double delta = 1.003;
+    //}
 
-    [Test]
-    public void TestGlyceraldehyde()
-    {
-        string path = @"C:\Xcalibur\data\glyceraldehyde_dehydrogenase_fornelliDataset.raw";
+    //[Test]
+    //public void TestGlyceraldehyde()
+    //{
+    //    string path = @"C:\Xcalibur\data\glyceraldehyde_dehydrogenase_fornelliDataset.raw";
 
-        var spectrum = Readers.ThermoRawFileReader.LoadAllStaticData(path).GetAllScansList().First();  
+    //    var spectrum = Readers.ThermoRawFileReader.LoadAllStaticData(path).GetAllScansList().First();  
 
-        ChargeStateIdentifier csi = new ChargeStateIdentifier(
-            new ChargeStateDeconvolutionParams(5, 60, 100, 19, 
-                envelopeThreshold: 0.0, sequentialChargeStateDiff: 0.8, envelopeScoreThresh:0.6, percentageMatchedThresh:0d,
-                deltaMass:0.1, deconType: PreFilterDeconvolutionType.Multiplicative));
+    //    ChargeStateIdentifier csi = new ChargeStateIdentifier(
+    //        new ChargeStateDeconvolutionParams(5, 60, 100, 19, 
+    //            envelopeThreshold: 0.0, sequentialChargeStateDiff: 0.8, envelopeScoreThresh:0.6, percentageMatchedThresh:0d,
+    //            deltaMass:0.1, deconType: PreFilterDeconvolutionType.Multiplicative));
 
-        var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(500, 2000)).ToList(); 
+    //    var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(500, 2000)).ToList(); 
 
-    }
+    //}
 
     [Test]
     public void TestIonTrap()
@@ -207,11 +207,36 @@ public class TestChargeStateIdentifier
         var spectrum = Readers.ThermoRawFileReader.LoadAllStaticData(path).GetAllScansList().First();
 
         ChargeStateIdentifier csi = new ChargeStateIdentifier(
-            new ChargeStateDeconvolutionParams(5, 60, 10, 19,
-                deltaMass:0.1, envelopeThreshold: 0.2, sequentialChargeStateDiff: 0.9, envelopeScoreThresh: 0.6,
-                percentageMatchedThresh: 0.5, deconType: PreFilterDeconvolutionType.Multiplicative));
+            new ChargeStateDeconvolutionParams(5, 60,
+                10, 19, 9000, maximumMass: 60000, 
+                deltaMass:0.1, envelopeThreshold: 0.2, sequentialChargeStateDiff: 0.9, 
+                envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.5, 
+                deconType: PreFilterDeconvolutionType.Multiplicative));
 
         var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(800, 860)).ToList();
+
+    }
+
+    [Test]
+    public void TestWhyHarmonic()
+    {
+        string path = @"D:\DeconvolutionPaper\SixProtStandardMixMeth1.mzML";
+        var spectrum = Readers.MsDataFileReader.GetDataFile(path);
+        spectrum.InitiateDynamicConnection();
+        var scan = spectrum.GetOneBasedScanFromDynamicConnection(2785); 
+
+        ChargeStateIdentifier csi = new ChargeStateIdentifier(
+            new ChargeStateDeconvolutionParams(5, 100,
+                50, 19, 9000, maximumMass: 70000,
+                deltaMass: 0.1, envelopeThreshold: 0.01, sequentialChargeStateDiff: 0.9,
+                envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.5,
+                deconType: PreFilterDeconvolutionType.Multiplicative));
+
+        var results = csi.Deconvolute(scan.MassSpectrum, 
+            new MzRange(scan.MassSpectrum.FirstX.Value, scan.MassSpectrum.LastX.Value))
+            .DistinctBy(i => i.MonoisotopicMass)
+            .ToList(); 
+        spectrum.CloseDynamicConnection();
 
     }
 

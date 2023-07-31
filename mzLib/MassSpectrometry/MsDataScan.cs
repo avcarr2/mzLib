@@ -76,9 +76,9 @@ namespace MassSpectrometry
 
         public int? SelectedIonChargeStateGuess { get; }
         public double? SelectedIonIntensity { get; private set; } // May be refined
-        public double? SelectedIonMZ { get; private set; } // May be adjusted by calibration
+        public double? SelectedIonMZ { get; set; } // May be adjusted by calibration
         public DissociationType? DissociationType { get; }
-        public double? IsolationWidth { get; }
+        public double? IsolationWidth { get; set; }
         public int? OneBasedPrecursorScanNumber { get; private set; }
         public double? SelectedIonMonoisotopicGuessIntensity { get; private set; } // May be refined
         public double? SelectedIonMonoisotopicGuessMz { get; private set; } // May be refined

@@ -24,10 +24,10 @@ namespace MassSpectrometry
 
 
         public ChargeStateDeconvolutionParams(int minCharge, int maxCharge, double peakMatchTolerancePpm,
-            int maxThreads, double minimumMass = 9500, double maximumMass = 60000, 
-            double envelopeThreshold = 0.6, double deltaMass = 1.003, 
-            double sequentialChargeStateDiff = 1d, double envelopeScoreThresh = 0.8, 
-            double percentageMatchedThresh = 0d, PreFilterDeconvolutionType deconType = PreFilterDeconvolutionType.Mann) : base()
+            int maxThreads, double minimumMass, double maximumMass, 
+            double envelopeThreshold, double deltaMass, 
+            double sequentialChargeStateDiff, double envelopeScoreThresh, 
+            double percentageMatchedThresh, PreFilterDeconvolutionType deconType = PreFilterDeconvolutionType.Multiplicative) : base()
         {
             MinCharge = minCharge;
             MaxCharge = maxCharge;
