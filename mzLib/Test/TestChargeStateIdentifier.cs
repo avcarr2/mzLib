@@ -19,6 +19,7 @@ using System.Windows.Input;
 using MathNet.Numerics.Statistics;
 using OxyPlot.Axes;
 using OxyPlot.Series;
+using UsefulProteomicsDatabases.Generated;
 
 
 namespace Test;
@@ -214,7 +215,7 @@ public class TestChargeStateIdentifier
                 deconType: PreFilterDeconvolutionType.Multiplicative));
 
         var result = csi.Deconvolute(spectrum.MassSpectrum, new MzRange(800, 860)).ToList();
-
+        
     }
 
     [Test]
@@ -222,13 +223,14 @@ public class TestChargeStateIdentifier
     {
         string path = @"D:\DeconvolutionPaper\SixProtStandardMixMeth1.mzML";
         var spectrum = Readers.MsDataFileReader.GetDataFile(path);
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak:0.01, applyTrimmingToMs1:true);
         spectrum.InitiateDynamicConnection();
-        var scan = spectrum.GetOneBasedScanFromDynamicConnection(2785); 
+        var scan = spectrum.GetOneBasedScanFromDynamicConnection(1469, filteringParams); 
 
         ChargeStateIdentifier csi = new ChargeStateIdentifier(
             new ChargeStateDeconvolutionParams(5, 100,
-                50, 19, 9000, maximumMass: 70000,
-                deltaMass: 0.1, envelopeThreshold: 0.01, sequentialChargeStateDiff: 0.9,
+                15, 19, 9000, maximumMass: 70000,
+                deltaMass: 0.25, envelopeThreshold: 0.01, sequentialChargeStateDiff: 0.9,
                 envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.5,
                 deconType: PreFilterDeconvolutionType.Multiplicative));
 
@@ -238,6 +240,53 @@ public class TestChargeStateIdentifier
             .ToList(); 
         spectrum.CloseDynamicConnection();
 
+    }
+
+    [Test]
+    [TestCase(@"D:\AA_08-01-23_ISF\SixProtStandardMixMeth1.raw")]
+    public void DeconProteinAGAndCytochromeC(string path)
+    {
+        string proteinAgPath = @"D:\AA_08-01-23_ISF\proteinAg.txt";
+        string cytoCPath = @"D:\AA_08-01-23_ISF\cytoC.txt"; 
+
+        int proteinAgScanNumber = 2244;
+        int cytocScanNumber = 2523;
+
+        using var streamWriterAg = new StreamWriter(proteinAgPath, false);
+        using var cytoCyWriter = new StreamWriter(cytoCPath, false);
+
+        var spectrum = MsDataFileReader.GetDataFile(path);
+        FilteringParams filteringParams = new FilteringParams(minimumAllowedIntensityRatioToBasePeak: 0.1, applyTrimmingToMs1: true);
+        spectrum.InitiateDynamicConnection();
+        var scanAG = spectrum.GetOneBasedScanFromDynamicConnection(2244, filteringParams);
+        var cytoScan = spectrum.GetOneBasedScanFromDynamicConnection(2523, filteringParams); 
+
+        ChargeStateIdentifier csi = new ChargeStateIdentifier(
+            new ChargeStateDeconvolutionParams(5, 100,
+                15, 19, 9000, maximumMass: 70000,
+                deltaMass: 0.01, envelopeThreshold: 0.01, sequentialChargeStateDiff: 0.9,
+                envelopeScoreThresh: 0.6, percentageMatchedThresh: 0.5,
+                deconType: PreFilterDeconvolutionType.Multiplicative));
+
+        var resultsAg = csi.Deconvolute(scanAG.MassSpectrum,
+                new MzRange(scanAG.MassSpectrum.FirstX.Value, scanAG.MassSpectrum.LastX.Value))
+            .ToList();
+        var resultsCyto = csi.Deconvolute(cytoScan.MassSpectrum,
+            new MzRange(cytoScan.MassSpectrum.FirstX.Value, cytoScan.MassSpectrum.LastX.Value))
+            .ToList();
+
+        foreach (var i in resultsAg)
+        {
+            streamWriterAg.WriteLine(string.Join("\t", i.Charge, i.MonoisotopicMass));
+        }
+        streamWriterAg.Flush();
+
+        foreach (var i in resultsCyto)
+        {
+            cytoCyWriter.WriteLine(string.Join("\t", i.Charge, i.MonoisotopicMass));
+        }
+        cytoCyWriter.Flush();
+        spectrum.CloseDynamicConnection();
     }
 
 }
